@@ -1,0 +1,2395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aedan's CFA Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Arial',sans-serif;background:#f0f2f5;color:#1a1a2e;font-size:14px}
+
+/* HEADER */
+.header{background:#0d1b2e;padding:16px 32px;display:flex;align-items:center;justify-content:space-between}
+.header-left h1{color:#fff;font-size:22px;font-weight:bold;letter-spacing:0.5px}
+.header-left p{color:#a0aec0;font-size:11px;letter-spacing:1.5px;margin-top:2px;text-transform:uppercase}
+.header-stats{display:flex;gap:0;border-left:1px solid rgba(255,255,255,0.15)}
+.hstat{padding:4px 20px;text-align:center;border-right:1px solid rgba(255,255,255,0.15)}
+.hstat-val{font-size:22px;font-weight:bold;color:#C5A028}
+.hstat-lbl{font-size:10px;color:#a0aec0;text-transform:uppercase;letter-spacing:1px;margin-top:1px}
+
+/* NAV */
+.nav{background:#0d1b2e;border-bottom:3px solid #C5A028;padding:0 32px;display:flex;gap:0}
+.nav-tab{padding:14px 20px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-3px;transition:color 0.15s}
+.nav-tab:hover{color:rgba(255,255,255,0.8)}
+.nav-tab.active{color:#C5A028;border-bottom-color:#C5A028}
+
+/* PAGES */
+.page{display:none;padding:24px 32px;max-width:1400px;margin:0 auto}
+.page.active{display:block}
+
+/* OVERVIEW — stat cards */
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:#0d1b2e;border-radius:8px;padding:20px 24px}
+.stat-card-lbl{font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#C5A028;margin-bottom:8px}
+.stat-card-val{font-size:36px;font-weight:bold;line-height:1}
+.stat-card-sub{font-size:12px;color:#a0aec0;margin-top:6px}
+.val-green{color:#48bb78}
+.val-amber{color:#C5A028}
+.val-red{color:#fc8181}
+.val-white{color:#fff}
+
+/* EVENT CARDS */
+.event-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.event-card{border-radius:8px;padding:18px 20px;color:#fff}
+.event-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.event-num{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;margin-right:8px}
+.event-name{font-size:13px;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase}
+.event-badge{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:3px 8px;font-size:10px;font-weight:bold;letter-spacing:0.5px}
+.badge-good{background:rgba(72,187,120,0.25);border-color:rgba(72,187,120,0.5);color:#9ae6b4}
+.badge-ok{background:rgba(197,160,40,0.25);border-color:rgba(197,160,40,0.5);color:#fbd38d}
+.badge-bad{background:rgba(252,129,129,0.2);border-color:rgba(252,129,129,0.4);color:#feb2b2}
+.event-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.metric-lbl{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:3px}
+.metric-val{font-size:18px;font-weight:bold}
+.metric-unit{font-size:11px;font-weight:normal;color:rgba(255,255,255,0.7);margin-left:2px}
+.gap-lbl{font-size:10px;color:rgba(255,255,255,0.6);margin-bottom:5px}
+.progress-track{background:rgba(255,255,255,0.15);border-radius:3px;height:6px;position:relative}
+.progress-fill{height:6px;border-radius:3px;background:#fc8181;transition:width 0.4s}
+.progress-fill.good{background:#48bb78}
+.progress-fill.ok{background:#C5A028}
+.progress-pct{font-size:11px;color:rgba(255,255,255,0.8);text-align:right;margin-top:4px;font-weight:bold}
+
+/* EVENT COLORS */
+.ec-purple{background:#5a4fcf}
+.ec-blue{background:#2b5daf}
+.ec-amber{background:#8B6914}
+.ec-green{background:#1a7a4a}
+.ec-red{background:#8b2121}
+.ec-pink{background:#8b2157}
+.ec-navy{background:#1a3a6b}
+
+/* LOG PAGE */
+.log-form{background:#0d1b2e;border-radius:8px;padding:24px;margin-bottom:20px}
+.log-form h3{color:#C5A028;font-size:12px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:18px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.form-field label{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#a0aec0;margin-bottom:5px}
+.form-field input{width:100%;background:#1a2a3e;border:1px solid #2d3f55;border-radius:5px;padding:10px 12px;color:#fff;font-size:14px}
+.form-field input:focus{outline:none;border-color:#C5A028}
+.form-field input::placeholder{color:#4a5568}
+.btn-save{background:#C5A028;color:#0d1b2e;border:none;padding:11px 28px;border-radius:5px;font-weight:bold;font-size:13px;cursor:pointer;letter-spacing:0.5px;margin-top:4px}
+.btn-save:hover{background:#d4b040}
+.session-history{background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0}
+.sh-header{background:#0d1b2e;padding:14px 20px}
+.sh-header h3{color:#C5A028;font-size:12px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase}
+.log-table{width:100%;border-collapse:collapse;font-size:13px}
+.log-table th{background:#1a2a3e;color:#C5A028;padding:10px 14px;text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:bold}
+.log-table td{padding:11px 14px;border-bottom:1px solid #f0f2f5;color:#2d3748}
+.log-table tr:last-child td{border-bottom:none}
+.log-table tr:nth-child(even) td{background:#f8f9fc}
+.log-table tr:hover td{background:#eef2fb}
+.btn-del{background:none;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;font-size:11px;color:#a0aec0;cursor:pointer}
+.btn-del:hover{background:#fee2e2;border-color:#fca5a5;color:#c0392b}
+
+/* BURNDOWN PAGE */
+.burndown-sub{font-size:13px;color:#666;margin-bottom:20px}
+.bd-card{background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:16px}
+.bd-header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;color:#fff}
+.bd-header-left{display:flex;align-items:center;gap:10px}
+.bd-num{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold}
+.bd-title{font-size:13px;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase}
+.bd-avg{font-size:12px;color:rgba(255,255,255,0.7)}
+.bd-legend{display:flex;gap:16px;padding:10px 20px;background:#f8f9fc;border-bottom:1px solid #e2e8f0}
+.bd-leg-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#555}
+.leg-solid{width:20px;height:3px;border-radius:2px}
+.leg-dashed{width:20px;height:0;border-top:3px dashed}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+.bd-chart-wrap{padding:12px 16px 8px;position:relative;height:200px}
+
+/* GOALS PAGE */
+.goals-sub{font-size:13px;color:#666;margin-bottom:20px}
+.goals-table-wrap{background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0}
+.goals-table-header{background:#0d1b2e;padding:14px 20px}
+.goals-table-header h3{color:#C5A028;font-size:12px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase}
+.goals-table{width:100%;border-collapse:collapse;font-size:13px}
+.goals-table th{background:#1a2a3e;color:#C5A028;padding:11px 16px;text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:bold}
+.goals-table td{padding:13px 16px;border-bottom:1px solid #f0f2f5}
+.goals-table tr:last-child td{border-bottom:none}
+.goals-table tr:nth-child(even) td{background:#f8f9fc}
+.ev-pill{display:inline-flex;align-items:center;gap:7px}
+.ev-dot{width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;flex-shrink:0}
+.goal-june{font-weight:bold;font-size:14px}
+.status-pill{padding:3px 10px;border-radius:4px;font-size:10px;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase}
+.sp-good{background:#c6f6d5;color:#276749}
+.sp-ok{background:#fefcbf;color:#744210}
+.sp-bad{background:#fed7d7;color:#742a2a}
+
+.leg-dashed{width:24px;height:3px;background:repeating-linear-gradient(90deg,#0080FF 0,#0080FF 5px,transparent 5px,transparent 9px)}
+.calc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+@media(max-width:800px){.calc-wrap{grid-template-columns:1fr}}
+
+/* ── MOBILE RESPONSIVE ───────────────────────────────── */
+@media(max-width:640px){
+
+  /* Header */
+  .header{padding:12px 16px;flex-wrap:wrap;gap:8px}
+  .header-left h1{font-size:17px}
+  .header-left p{font-size:10px}
+  .header-stats{border-left:none;border-top:1px solid rgba(255,255,255,0.15);width:100%;justify-content:space-around;padding-top:8px}
+  .hstat{padding:4px 12px}
+  .hstat-val{font-size:18px}
+
+  /* Nav — scrollable horizontal strip */
+  .nav{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav-tab{padding:12px 12px;font-size:10px;letter-spacing:0.5px;white-space:nowrap}
+
+  /* Pages */
+  .page{padding:14px 12px}
+  .page-title{font-size:17px}
+
+  /* Overview stat cards — 2x2 grid */
+  .stat-cards{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .stat-card{padding:14px 16px}
+  .stat-card-val{font-size:28px}
+
+  /* Event cards — single column */
+  .event-grid{grid-template-columns:1fr}
+  .event-metrics{grid-template-columns:1fr 1fr 1fr}
+  .metric-val{font-size:15px}
+
+  /* Log form */
+  .log-form{padding:16px}
+  .form-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .log-table{font-size:12px}
+  .log-table th,.log-table td{padding:7px 8px}
+
+  /* Burndown */
+  .bd-chart-wrap{height:180px}
+  .bd-header{flex-direction:column;align-items:flex-start;gap:4px;padding:10px 14px}
+  .bd-avg{font-size:11px}
+  .bd-legend{flex-wrap:wrap;gap:8px;padding:8px 14px}
+
+  /* Goals table — hide less important columns */
+  .goals-table th:nth-child(3),
+  .goals-table td:nth-child(3),
+  .goals-table th:nth-child(4),
+  .goals-table td:nth-child(4){display:none}
+  .goals-table{font-size:12px}
+  .goals-table th,.goals-table td{padding:8px 8px}
+
+  /* CFA Calculator */
+  .calc-wrap{grid-template-columns:1fr}
+  .calc-event-name{font-size:11px}
+  .aedan-marker{display:block;margin-left:0;margin-top:3px}
+
+  /* WPS page — stack columns */
+  #page-wps > div:nth-child(2){grid-template-columns:1fr !important}
+  .wps-select{font-size:12px}
+  .wps-label{font-size:11px}
+
+  /* General cards */
+  .card{padding:12px 14px}
+  .card-title{font-size:11px}
+
+  /* Score display */
+  .score-display .score-num,
+  #r-cfa-total,#r-wpm-total{font-size:42px}
+
+  /* Reference tables — allow horizontal scroll */
+  .goals-table-wrap,
+  .session-history,
+  #page-reference .card{overflow-x:auto}
+
+  /* Summary table on dashboard */
+  #dash-table{font-size:11px}
+  #dash-table th,#dash-table td{padding:6px 6px;white-space:nowrap}
+}
+.calc-form{background:#0d1b2e;border-radius:8px;padding:24px}
+.calc-form h3{color:#C5A028;font-size:12px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px}
+.calc-gender{display:flex;gap:10px;margin-bottom:20px}
+.gender-btn{flex:1;padding:10px;border-radius:6px;border:2px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.5);font-weight:bold;font-size:13px;cursor:pointer;transition:all 0.15s}
+.gender-btn.active{background:#C5A028;border-color:#C5A028;color:#0d1b2e}
+.calc-event{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.calc-event:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.calc-event-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.calc-event-name{font-size:12px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px}
+.calc-event-pts{font-size:18px;font-weight:bold;color:#C5A028}
+.calc-input-row{display:flex;align-items:center;gap:10px}
+.calc-input-row input[type=range]{flex:1;accent-color:#C5A028;cursor:pointer}
+.calc-val-display{background:#1a2a3e;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px 8px;color:#fff;font-size:13px;width:76px;text-align:center;flex-shrink:0}
+.aedan-tag{display:inline-block;background:rgba(197,160,40,0.2);border:1px solid rgba(197,160,40,0.4);color:#fbd38d;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:bold;margin-left:6px;vertical-align:middle}
+.calc-results{background:#0d1b2e;border-radius:8px;padding:24px;position:sticky;top:20px}
+.calc-results h3{color:#C5A028;font-size:12px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px}
+.score-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.score-box{text-align:center;padding:16px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:8px}
+.score-box-num{font-size:36px;font-weight:bold;color:#fff;line-height:1}
+.score-box-denom{font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px}
+.score-box-lbl{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-top:6px}
+.wps-box{background:rgba(197,160,40,0.1);border-color:rgba(197,160,40,0.4)!important}
+.wps-box .score-box-num{color:#C5A028}
+.pct-row{background:#1a2a3e;border-radius:6px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.pct-val{font-size:22px;font-weight:bold}
+.pct-lbl{font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px}
+.verdict{padding:12px 16px;border-radius:6px;font-size:13px;font-weight:bold;text-align:center;margin-bottom:14px}
+.v-pass{background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.4);color:#9ae6b4}
+.v-risk{background:rgba(252,129,129,0.15);border:1px solid rgba(252,129,129,0.4);color:#feb2b2}
+.v-cadet{background:rgba(197,160,40,0.15);border:1px solid rgba(197,160,40,0.4);color:#fbd38d}
+.ev-breakdown{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+.ev-breakdown td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)}
+.ev-breakdown td:last-child{text-align:right;font-weight:bold}
+.ev-breakdown .fail-row td{color:#fc8181}.ev-breakdown .pass-row td{color:#9ae6b4}
+.calc-note{font-size:10px;color:rgba(255,255,255,0.35);line-height:1.6}
+.wps-context{background:#fff;border-radius:8px;padding:16px 20px;margin-top:16px;border:1px solid #e2e8f0}
+.wps-context h4{font-size:12px;font-weight:bold;color:#001F5B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+.wps-bar-row{margin-bottom:8px}
+.wps-bar-label{display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:3px}
+.wps-bar-track{background:#e2e8f0;border-radius:3px;height:8px}
+.wps-bar-fill{height:8px;border-radius:3px;transition:width 0.4s}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>Aedan's CFA Tracker</h1>
+    <p>US Naval Academy &middot; Candidate Fitness Assessment</p>
+  </div>
+  <div class="header-stats">
+    <div class="hstat"><div class="hstat-val" id="days-left">—</div><div class="hstat-lbl">Days Left</div></div>
+    <div class="hstat"><div class="hstat-val">Jun 13</div><div class="hstat-lbl">Target</div></div>
+    <div class="hstat"><div class="hstat-val">7</div><div class="hstat-lbl">Events</div></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-tab active" onclick="showPage('overview',this)">Overview</div>
+  <div class="nav-tab" onclick="showPage('log',this)">Practice Log</div>
+  <div class="nav-tab" onclick="showPage('burndown',this)">Burndown</div>
+  <div class="nav-tab" onclick="showPage('goals',this)">Monthly Goals</div>
+  <div class="nav-tab" onclick="showPage('calculator',this)">CFA Score Calculator</div>
+  <div class="nav-tab" onclick="showPage('wps',this)">Whole Person Multiple</div>
+  <div class="nav-tab" onclick="showPage('training',this)">Training Plan</div>
+  <div class="nav-tab" onclick="showPage('scores',this)">Test Scores</div>
+  <div class="nav-tab" onclick="showPage('measurements',this)">Measurements</div>
+</div>
+
+<!-- ═══════════ OVERVIEW ═══════════ -->
+<div class="page active" id="page-overview">
+  <div class="stat-cards">
+    <div class="stat-card">
+      <div class="stat-card-lbl">Days to Jun 13</div>
+      <div class="stat-card-val val-white" id="ov-days">—</div>
+      <div class="stat-card-sub">keep pushing</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-lbl">On Target</div>
+      <div class="stat-card-val val-green" id="ov-ontarget">0</div>
+      <div class="stat-card-sub">events</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-lbl">Improving</div>
+      <div class="stat-card-val val-amber" id="ov-improving">0</div>
+      <div class="stat-card-sub">events</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-lbl">Needs Work</div>
+      <div class="stat-card-val val-red" id="ov-needswork">0</div>
+      <div class="stat-card-sub">events</div>
+    </div>
+  </div>
+  <div class="event-grid" id="event-grid"></div>
+
+  <!-- Weight / CFA correlation callout -->
+  <div id="weight-callout" style="margin-top:16px;background:#0d1b2e;border-radius:8px;padding:18px 22px;display:none">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">⚖️ Weight Impact on CFA</div>
+        <div id="weight-callout-text" style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.7"></div>
+      </div>
+      <div style="display:flex;gap:12px;flex-shrink:0" id="weight-callout-cards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ LOG ═══════════ -->
+<div class="page" id="page-log">
+  <div class="log-form">
+    <h3>Log a Training Session</h3>
+    <div style="margin-bottom:14px">
+      <div class="form-field" style="max-width:200px">
+        <label>Date</label>
+        <input type="date" id="f-date">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-field"><label>1. Weight (lbs)</label><input type="number" id="f-wt" placeholder="e.g. 197" step="0.1"></div>
+      <div class="form-field"><label>2. Basketball Throw (ft)</label><input type="number" id="f-bb" placeholder="e.g. 60" step="0.5"></div>
+      <div class="form-field"><label>3. Pull-ups (reps)</label><input type="number" id="f-pu" placeholder="e.g. 3" step="0.5"></div>
+      <div class="form-field"><label>4. 40yd Shuttle (sec)</label><input type="number" id="f-sh" placeholder="e.g. 9.60" step="0.01"></div>
+      <div class="form-field"><label>5. Crunches (reps)</label><input type="number" id="f-cr" placeholder="e.g. 51"></div>
+      <div class="form-field"><label>6. Push-ups (reps)</label><input type="number" id="f-ps" placeholder="e.g. 41"></div>
+      <div class="form-field"><label>7. Mile Run (mm:ss)</label><input type="text" id="f-mi" placeholder="e.g. 8:07"></div>
+      <div class="form-field"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional notes"></div>
+    </div>
+    <button class="btn-save" onclick="saveEntry()">Save Entry</button>
+  </div>
+  <div class="session-history">
+    <div class="sh-header"><h3>Session History</h3></div>
+    <div style="overflow-x:auto">
+      <table class="log-table">
+        <thead><tr>
+          <th>Date</th><th>Weight</th><th>BB Throw</th><th>Pull-ups</th>
+          <th>Shuttle</th><th>Crunches</th><th>Push-ups</th><th>Mile</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody id="log-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ BURNDOWN ═══════════ -->
+<div class="page" id="page-burndown">
+  <p class="burndown-sub">Solid line = actual scores. Dashed = linear trend projection to Jun 13. Green = USNA average. Gold = USNA best (max points).</p>
+  <div id="burndown-cards"></div>
+</div>
+
+<!-- ═══════════ GOALS ═══════════ -->
+<div class="page" id="page-goals">
+  <p class="goals-sub">Updated April 2026 — targets reset from current scores. Lower is better for shuttle and mile.</p>
+  <div class="goals-table-wrap">
+    <div class="goals-table-header"><h3>Monthly Milestone Targets</h3></div>
+    <table class="goals-table">
+      <thead><tr>
+        <th>Event</th><th>Current</th><th>May Target</th><th>Jun Target</th>
+        <th>Jun 13 Goal</th><th>CFA Avg</th><th>CFA Best</th><th>Status</th>
+      </tr></thead>
+      <tbody id="goals-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// SUPABASE CONFIG — fill in your values after setup
+// ═══════════════════════════════════════════════
+const SUPABASE_URL  = 'https://nhhsxtwhetduzazfyaxn.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oaHN4dHdoZXRkdXphemZ5YXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjMxODIsImV4cCI6MjA4OTkzOTE4Mn0.-9ieMpX47krZMQ9nhjGsfsHL-WljwjhQP4tPSjUvJk4';
+const TABLE         = 'cfa_log';
+
+// ═══════════════════════════════════════════════
+// STORAGE — localStorage primary, Supabase sync attempted
+// All data saved locally immediately, Supabase tried in background
+// ═══════════════════════════════════════════════
+const LS = {
+  get(key){ try{ return JSON.parse(localStorage.getItem('cfa_'+key)||'null'); }catch(e){return null;} },
+  set(key,val){ try{ localStorage.setItem('cfa_'+key, JSON.stringify(val)); }catch(e){} },
+};
+
+// Supabase helper — used as optional sync layer
+const SB = {
+  async select(table){
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?order=date.asc`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if(!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async insert(table, row){
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method:'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':'application/json', Prefer:'return=representation'
+      },
+      body: JSON.stringify(row)
+    });
+    if(!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async delete(table, id){
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method:'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if(!r.ok) throw new Error(await r.text());
+  }
+};
+
+// Keep TABLE const for any legacy references
+const TABLE = 'cfa_log';
+
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const TARGET_DATE = new Date('2026-06-13');
+
+const USNA = {
+  wt: {avg:190,  best:180},
+  bb: {avg:67,   best:102},
+  pu: {avg:13,   best:18},
+  sh: {avg:8.90, best:7.8},
+  cr: {avg:73,   best:95},
+  ps: {avg:60,   best:75},
+  mi: {avg:403,  best:320},
+};
+
+const EVENTS = [
+  {key:'wt', name:'Weight',         unit:'lbs', higher:false, color:'#1a3a6b', num:0},
+  {key:'bb', name:'Basketball Throw',unit:'ft', higher:true,  color:'#5a4fcf', num:1},
+  {key:'pu', name:'Pull-ups',       unit:'reps',higher:true,  color:'#2b5daf', num:2},
+  {key:'sh', name:'40yd Shuttle',   unit:'sec', higher:false, color:'#8B6914', num:3},
+  {key:'cr', name:'Crunches',       unit:'reps',higher:true,  color:'#1a7a4a', num:4},
+  {key:'ps', name:'Push-ups',       unit:'reps',higher:true,  color:'#8b2121', num:5},
+  {key:'mi', name:'1 Mile Run',     unit:'min', higher:false, color:'#8b2157', num:6},
+];
+
+const MILESTONES = {
+  // [May target, Jun target, Jun 13 goal]
+  // Updated April 2026 — based on current scores
+  wt: ['191–193','188–191','185–190'],   // currently 193.4, trending down well
+  bb: ['67–70','70–74','72–76'],          // currently 65, at avg — push toward best
+  pu: ['7–8','9–10','10–12'],             // currently 6, already past old May target
+  sh: ['9.1–9.3','8.9–9.1','8.8–9.0'],   // currently 9.5, trend 8.5 by Jun 13
+  cr: ['68–72','74–78','78–85'],          // currently 61, trending strongly
+  ps: ['52–58','58–64','62–68'],          // currently 45, steady climb
+  mi: ['6:55–7:10','6:40–6:55','6:30–6:45'], // currently 7:10, trend 6:53
+};
+
+// LOG is loaded from Supabase on init — seed data inserted once on first load
+let LOG = [];
+let DB_READY = false; // true once Supabase has responded
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function fmtMile(sec){
+  if(sec===null||sec===undefined||sec==='') return '—';
+  sec=Math.round(Number(sec));
+  return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+}
+function parseMile(str){
+  if(!str||str.trim()==='') return null;
+  str=str.trim();
+  if(str.includes(':')){
+    const [m,s]=str.split(':');
+    return parseInt(m)*60+parseInt(s||0);
+  }
+  return parseFloat(str)||null;
+}
+function fmtVal(val,ev){
+  if(val===null||val===undefined||val==='') return '—';
+  if(ev.key==='mi') return fmtMile(val)+' min';
+  if(ev.key==='wt') return Number(val).toFixed(1)+' lbs';
+  return val+' '+ev.unit;
+}
+function getVal(row,key){ const v=row[key]; return (v===''||v===null||v===undefined)?null:Number(v); }
+function getLatest(key){
+  for(let i=LOG.length-1;i>=0;i--){
+    const v=getVal(LOG[i],key);
+    if(v!==null) return v;
+  }
+  return null;
+}
+function getBase(key){ return getVal(LOG[0],key); }
+function pctClosed(score,base,target,higher){
+  if(score===null||base===null) return 0;
+  const denom=higher?(target-base):(base-target);
+  if(denom===0) return 100;
+  const num=higher?(score-base):(base-score);
+  return Math.min(100,Math.max(0,(num/denom)*100));
+}
+function daysLeft(){
+  const now=new Date();
+  const diff=Math.ceil((TARGET_DATE-now)/(1000*60*60*24));
+  return Math.max(0,diff);
+}
+function linReg(vals){
+  const n=vals.length;
+  if(n<2) return {slope:0,intercept:vals[0]||0};
+  const xs=vals.map((_,i)=>i);
+  const xm=xs.reduce((a,b)=>a+b,0)/n;
+  const ym=vals.reduce((a,b)=>a+b,0)/n;
+  const slope=xs.reduce((s,x,i)=>s+(x-xm)*(vals[i]-ym),0)/xs.reduce((s,x)=>s+(x-xm)**2,0);
+  return {slope,intercept:ym-slope*xm};
+}
+// Returns projected value at TARGET_DATE using linear regression on LOG data for this event
+function trendAtTarget(key, higher){
+  const rows = LOG.filter(r=>getVal(r,key)!==null);
+  if(rows.length < 2){
+    // Only one data point — can't project, use current value
+    return getLatest(key);
+  }
+  const vals = rows.map(r=>getVal(r,key));
+  const {slope, intercept} = linReg(vals);
+  // Estimate how many "test intervals" to Jun 13
+  // Use average days between tests to convert days → test-index steps
+  const dates = rows.map(r=>new Date(r.date+'T12:00:00'));
+  const avgInterval = dates.length > 1
+    ? (dates[dates.length-1] - dates[0]) / (dates.length - 1)
+    : 28 * 24 * 60 * 60 * 1000; // default 28 days
+  const daysToTarget = (TARGET_DATE - dates[dates.length-1]) / (1000*60*60*24);
+  const stepsToTarget = daysToTarget / (avgInterval / (1000*60*60*24));
+  return intercept + slope * (vals.length - 1 + stepsToTarget);
+}
+
+// Status based on whether the trend line will reach USNA avg by Jun 13
+// On Target   = trend projects to meet or beat USNA average by Jun 13
+// Improving   = trend is moving in the right direction but won't quite reach avg
+// Needs Work  = trend is flat or moving the wrong direction
+function statusOf(key, higher){
+  const avg = USNA[key].avg;
+  const latest = getLatest(key);
+  if(latest === null) return 'needs-work';
+
+  const projected = trendAtTarget(key, higher);
+
+  // Check if trend reaches avg
+  const willReach = higher ? projected >= avg : projected <= avg;
+  if(willReach) return 'on-target';
+
+  // Check if trend is at least moving in the right direction
+  const base = getBase(key);
+  if(base === null) return 'needs-work';
+  const movingRight = higher ? projected > base : projected < base;
+  if(movingRight) return 'improving';
+
+  return 'needs-work';
+}
+
+// ═══════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════
+let bdCharts={};
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+  if(id==='burndown') renderBurndown();
+  if(id==='calculator') buildCalcUI();
+}
+
+// ═══════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════
+function renderOverview(){
+  const dl=daysLeft();
+  document.getElementById('days-left').textContent=dl;
+  document.getElementById('ov-days').textContent=dl;
+
+  let onTarget=0,improving=0,needsWork=0;
+  EVENTS.forEach(ev=>{
+    const s=statusOf(ev.key, ev.higher);
+    if(s==='on-target') onTarget++;
+    else if(s==='improving') improving++;
+    else needsWork++;
+  });
+  document.getElementById('ov-ontarget').textContent=onTarget;
+  document.getElementById('ov-improving').textContent=improving;
+  document.getElementById('ov-needswork').textContent=needsWork;
+
+  const grid=document.getElementById('event-grid');
+  grid.innerHTML='';
+  EVENTS.forEach((ev,i)=>{
+    const latest=getLatest(ev.key);
+    const base=getBase(ev.key);
+    const pAvg=pctClosed(latest,base,USNA[ev.key].avg,ev.higher);
+    const pBest=pctClosed(latest,base,USNA[ev.key].best,ev.higher);
+    const s=statusOf(ev.key, ev.higher);
+    const badgeText=s==='on-target'?'On Target':s==='improving'?'Improving':'Needs Work';
+    const badgeClass=s==='on-target'?'badge-good':s==='improving'?'badge-ok':'badge-bad';
+    const fillClass=s==='on-target'?'good':s==='improving'?'ok':'';
+
+    const avgDisp=ev.key==='mi'?fmtMile(USNA[ev.key].avg)+' min':USNA[ev.key].avg+' '+ev.unit;
+    const bestDisp=ev.key==='mi'?fmtMile(USNA[ev.key].best)+' min':USNA[ev.key].best+' '+ev.unit;
+    const latestDisp=latest===null?'—':(ev.key==='mi'?fmtMile(latest)+' min':(ev.key==='wt'?Number(latest).toFixed(1):latest)+' '+ev.unit);
+
+    const card=document.createElement('div');
+    card.className='event-card';
+    card.style.background=ev.color;
+    card.innerHTML=`
+      <div class="event-card-top">
+        <div style="display:flex;align-items:center">
+          <div class="event-num">${i+1}</div>
+          <div class="event-name">${ev.name}</div>
+        </div>
+        <div class="event-badge ${badgeClass}">${badgeText}</div>
+      </div>
+      <div class="event-metrics">
+        <div><div class="metric-lbl">Current</div><div class="metric-val">${latestDisp}</div></div>
+        <div><div class="metric-lbl">Avg Goal</div><div class="metric-val" style="font-size:15px">${avgDisp}</div></div>
+        <div><div class="metric-lbl">Best</div><div class="metric-val" style="font-size:15px">${bestDisp}</div></div>
+      </div>
+      <div class="gap-lbl">Gap closed vs Avg</div>
+      <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${pAvg.toFixed(1)}%"></div></div>
+      <div class="progress-pct">${pAvg.toFixed(0)}%</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════
+function renderLog(){
+  const tbody=document.getElementById('log-tbody');
+  tbody.innerHTML='';
+  [...LOG].reverse().forEach((row,ri)=>{
+    const i=LOG.length-1-ri;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${row.date}</td>
+      <td>${row.wt??'—'}</td>
+      <td>${row.bb??'—'}</td>
+      <td>${row.pu??'—'}</td>
+      <td>${row.sh??'—'}</td>
+      <td>${row.cr??'—'}</td>
+      <td>${row.ps??'—'}</td>
+      <td>${row.mi?fmtMile(row.mi):'—'}</td>
+      <td style="color:#666;font-style:italic">${row.notes||''}</td>
+      <td><button class="btn-del" onclick="deleteRow(${i})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Set today's date as default
+  const today=new Date().toISOString().split('T')[0];
+  if(!document.getElementById('f-date').value) document.getElementById('f-date').value=today;
+}
+
+async function saveEntry(){
+  const date=document.getElementById('f-date').value;
+  if(!date){alert('Please enter a date.');return;}
+  const entry={
+    date,
+    wt:  parseFloat(document.getElementById('f-wt').value)||null,
+    bb:  parseFloat(document.getElementById('f-bb').value)||null,
+    pu:  parseFloat(document.getElementById('f-pu').value)||null,
+    sh:  parseFloat(document.getElementById('f-sh').value)||null,
+    cr:  parseFloat(document.getElementById('f-cr').value)||null,
+    ps:  parseFloat(document.getElementById('f-ps').value)||null,
+    mi:  parseMile(document.getElementById('f-mi').value),
+    notes: document.getElementById('f-notes').value||'',
+  };
+
+  const btn = document.querySelector('.btn-save');
+  btn.textContent='Saving…'; btn.disabled=true;
+
+  // Save to localStorage immediately
+  const newId = Date.now();
+  const saved = {...entry, id: newId};
+  LOG.push(saved);
+  LOG.sort((a,b)=>a.date.localeCompare(b.date));
+  LS.set('log', LOG);
+
+  ['f-wt','f-bb','f-pu','f-sh','f-cr','f-ps','f-mi','f-notes'].forEach(id=>document.getElementById(id).value='');
+  refreshAll();
+  btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
+  setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';btn.disabled=false;},1500);
+
+  // Try Supabase in background
+  try {
+    const [sbSaved] = await SB.insert('cfa_log', entry);
+    // Update local id to match Supabase id
+    const idx = LOG.findIndex(r=>r.id===newId);
+    if(idx>=0){ LOG[idx].id = sbSaved.id; LS.set('log', LOG); }
+  } catch(e) { console.log('Supabase sync failed, saved locally only'); }
+}
+
+async function deleteRow(i){
+  if(!confirm('Delete this entry?')) return;
+  const row = LOG[i];
+  LOG.splice(i,1);
+  LS.set('log', LOG);
+  refreshAll();
+  // Try Supabase in background
+  try { await SB.delete('cfa_log', row.id); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+// BURNDOWN
+// ═══════════════════════════════════════════════
+function renderBurndown(){
+  Object.values(bdCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  bdCharts={};
+  const container=document.getElementById('burndown-cards');
+  container.innerHTML='';
+  EVENTS.forEach((ev,idx)=>{
+    const rows=LOG.filter(r=>getVal(r,ev.key)!==null);
+    if(rows.length===0) return;
+    const avgD=ev.key==='mi'?fmtMile(USNA[ev.key].avg)+' min':USNA[ev.key].avg+' '+ev.unit;
+    const lowerNote=!ev.higher?' · Lower is better':'';
+    const card=document.createElement('div'); card.className='bd-card';
+    card.innerHTML=`
+      <div class="bd-header" style="background:${ev.color}">
+        <div class="bd-header-left"><div class="bd-num">${idx+1}</div><div class="bd-title">${ev.name}</div></div>
+        <div class="bd-avg">${lowerNote} · Avg: ${avgD}</div>
+      </div>
+      <div class="bd-legend">
+        <div class="bd-leg-item"><div class="leg-solid" style="background:${ev.color}"></div> Aedan (actual)</div>
+        <div class="bd-leg-item"><div class="leg-dashed"></div> Trend</div>
+        <div class="bd-leg-item"><div class="leg-dot" style="background:#00B050"></div> USNA Avg</div>
+        <div class="bd-leg-item"><div class="leg-dot" style="background:#C5A028"></div> USNA Best</div>
+      </div>
+      <div class="bd-chart-wrap"><canvas id="bdc-${ev.key}"></canvas></div>`;
+    container.appendChild(card);
+
+    const aDates=rows.map(r=>new Date(r.date+'T12:00:00').getTime());
+    const aVals=rows.map(r=>getVal(r,ev.key));
+    const n=aVals.length;
+    const {slope,intercept}=linReg(aVals);
+
+    // Future projection points monthly to Jun 13
+    const lastTs=aDates[n-1];
+    const trendPts=[{x:lastTs,y:aVals[n-1]}];
+    const d=new Date(lastTs); d.setDate(d.getDate()+28);
+    let step=1;
+    while(d.getTime()<TARGET_DATE.getTime()){
+      trendPts.push({x:d.getTime(),y:Math.round((intercept+slope*(n-1+step))*100)/100});
+      d.setDate(d.getDate()+28); step++;
+    }
+    trendPts.push({x:TARGET_DATE.getTime(),y:Math.round((intercept+slope*(n-1+step))*100)/100});
+
+    const xMin=aDates[0], xMax=TARGET_DATE.getTime();
+    const allY=[...aVals,...trendPts.map(p=>p.y),USNA[ev.key].avg,USNA[ev.key].best];
+    const yPad=(Math.max(...allY)-Math.min(...allY))*0.08||1;
+
+    const ctx=document.getElementById('bdc-'+ev.key).getContext('2d');
+    bdCharts[ev.key]=new Chart(ctx,{
+      type:'line',
+      data:{datasets:[
+        {label:'Aedan',data:aDates.map((x,i)=>({x,y:aVals[i]})),borderColor:ev.color,backgroundColor:'transparent',borderWidth:3,pointRadius:5,pointBackgroundColor:ev.color,tension:0,parsing:false},
+        {label:'Trend',data:trendPts,borderColor:'#0080FF',backgroundColor:'transparent',borderWidth:2,borderDash:[7,4],pointRadius:(c)=>c.dataIndex===0?0:3,pointBackgroundColor:'#0080FF',tension:0,parsing:false},
+        {label:'USNA Avg',data:[{x:xMin,y:USNA[ev.key].avg},{x:xMax,y:USNA[ev.key].avg}],borderColor:'#00B050',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],parsing:false},
+        {label:'USNA Best',data:[{x:xMin,y:USNA[ev.key].best},{x:xMax,y:USNA[ev.key].best}],borderColor:'#C5A028',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],parsing:false},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>{const v=c.raw.y;return ev.key==='mi'?`${c.dataset.label}: ${fmtMile(v)}`:`${c.dataset.label}: ${v} ${ev.unit}`;}}}},
+        scales:{
+          x:{type:'time',time:{unit:'month',displayFormats:{month:'MMM d'}},min:xMin,max:xMax,grid:{color:'rgba(0,0,0,0.05)'},ticks:{color:'#888',font:{size:11}}},
+          y:{min:Math.min(...allY)-yPad,max:Math.max(...allY)+yPad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{color:'#888',font:{size:11},callback:(v)=>ev.key==='mi'?fmtMile(v):v}},
+        }
+      }
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// GOALS
+// ═══════════════════════════════════════════════
+function renderGoals(){
+  const tbody=document.getElementById('goals-tbody');
+  tbody.innerHTML='';
+  EVENTS.forEach((ev,i)=>{
+    const latest=getLatest(ev.key);
+    const base=getBase(ev.key);
+    const pAvg=pctClosed(latest,base,USNA[ev.key].avg,ev.higher);
+    const s=statusOf(ev.key, ev.higher);
+    const spClass=s==='on-target'?'sp-good':s==='improving'?'sp-ok':'sp-bad';
+    const spLabel=s==='on-target'?'On Target':s==='improving'?'Improving':'Needs Work';
+
+    const ms=MILESTONES[ev.key];
+    const latestDisp=latest===null?'—':(ev.key==='mi'?fmtMile(latest)+' min':(ev.key==='wt'?Number(latest).toFixed(1):latest)+' '+ev.unit);
+    const avgDisp=ev.key==='mi'?fmtMile(USNA[ev.key].avg)+' min':USNA[ev.key].avg+' '+ev.unit;
+    const bestDisp=ev.key==='mi'?fmtMile(USNA[ev.key].best)+' min':USNA[ev.key].best+' '+ev.unit;
+
+    // Project Jun 13 from regression
+    const rows=LOG.filter(r=>getVal(r,ev.key)!==null);
+    let junProj='—';
+    if(rows.length>=2){
+      const vals=rows.map(r=>getVal(r,ev.key));
+      const {slope,intercept}=linReg(vals);
+      const lastDate=new Date(rows[rows.length-1].date);
+      const daysToJun=(TARGET_DATE-lastDate)/(1000*60*60*24);
+      const stepsToJun=daysToJun/30;
+      const proj=intercept+slope*(vals.length-1+stepsToJun);
+      junProj=ev.key==='mi'?fmtMile(Math.round(proj))+' min':Math.round(proj*10)/10+' '+ev.unit;
+    }
+
+    tbody.innerHTML+=`<tr>
+      <td><div class="ev-pill"><div class="ev-dot" style="background:${ev.color}">${i+1}</div>${ev.name}</div></td>
+      <td>${latestDisp}</td>
+      <td>${ms[0]}</td>
+      <td>${ms[1]}</td>
+      <td class="goal-june">${ms[2]} <span style="color:#888;font-size:11px;font-weight:normal">(trend: ${junProj})</span></td>
+      <td style="color:#007030;font-weight:bold">${avgDisp}</td>
+      <td style="color:#8B6914;font-weight:bold">${bestDisp}</td>
+      <td><span class="status-pill ${spClass}">${spLabel}</span></td>
+    </tr>`;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// REFRESH ALL
+// ═══════════════════════════════════════════════
+function refreshAll(){
+  renderOverview();
+  renderLog();
+  renderGoals();
+  renderWeightCallout();
+  if(document.getElementById('page-burndown').classList.contains('active')) renderBurndown();
+  if(document.getElementById('page-training').classList.contains('active')) renderTraining();
+}
+
+// ═══════════════════════════════════════════════
+// INIT — load from Supabase, seed on first run
+// ═══════════════════════════════════════════════
+const SEED_DATA = [
+  {date:'2026-02-21', wt:200,   bb:55,  pu:2,   sh:10.75, cr:27, ps:20, mi:530, notes:'Baseline'},
+  {date:'2026-03-08', wt:200,   bb:60,  pu:1,   sh:9.97,  cr:30, ps:35, mi:477, notes:'Pull-ups: fatigue'},
+  {date:'2026-03-15', wt:197,   bb:60,  pu:2,   sh:9.6,   cr:44, ps:38, mi:531, notes:''},
+  {date:'2026-03-22', wt:201.2, bb:60,  pu:2.5, sh:10.10, cr:51, ps:41, mi:487, notes:'Shuttle: dog interference'},
+];
+
+function showBanner(msg, type='info'){
+  let el = document.getElementById('db-banner');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'db-banner';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;padding:10px 20px;text-align:center;font-size:13px;font-weight:bold;transition:opacity 0.5s';
+    document.body.prepend(el);
+  }
+  const bg = type==='error' ? '#7a1a1a' : type==='success' ? '#1a3a28' : '#1a2a3e';
+  const fg = type==='error' ? '#fca5a5' : type==='success' ? '#86efac' : '#C5A028';
+  el.style.background = bg; el.style.color = fg; el.style.opacity = '1';
+  el.textContent = msg;
+  if(type !== 'info') setTimeout(()=>{ el.style.opacity='0'; }, 3000);
+}
+
+async function initApp(){
+  showBanner('⏳  Loading data…');
+
+  // Step 1: Load from localStorage immediately
+  const saved = LS.get('log');
+  if(saved && saved.length > 0){
+    LOG = saved;
+  } else {
+    LOG = SEED_DATA.map((r,i)=>({...r, id:i+1}));
+    LS.set('log', LOG);
+  }
+  DB_READY = true;
+  CEV.forEach(ev=>{ delete cVals[ev.key]; });
+  showBanner('✓  Data loaded', 'success');
+  refreshAll();
+
+  // Step 2: Try Supabase silently in background
+  try {
+    const rows = await SB.select('cfa_log');
+    if(rows && rows.length > 0){
+      LOG = rows;
+      LS.set('log', LOG);
+      CEV.forEach(ev=>{ delete cVals[ev.key]; });
+      refreshAll();
+    }
+  } catch(e) {
+    console.log('Supabase unavailable, using localStorage');
+  }
+}
+
+initApp();
+// Sources: USNA published max performance + threshold pts from calculator screenshot
+// ═══════════════════════════════════════════════
+const SC={
+  bb_male:   [[0,0],[30,18],[45,50],[50,62],[56,79],[65,90],[80,97],[102,100]],
+  bb_female: [[0,0],[20,18],[30,42],[40,62],[50,82],[60,95],[66,100]],
+  pu_male:   [[0,0],[1,28],[2,43],[3,54],[4,63],[5,70],[6,77],[7,83],[9,89],[11,93],[14,97],[18,100]],
+  pu_female: [[0,0],[1,50],[2,65],[3,75],[4,83],[5,90],[6,96],[7,100]],
+  sh_male:   [[7.8,100],[8.2,97],[8.6,94],[8.9,90],[9.1,85],[9.3,80],[9.5,76],[9.7,68],[9.9,58],[10.1,47],[10.3,36],[10.6,22],[11.0,0]],
+  sh_female: [[8.6,100],[9.0,95],[9.2,90],[9.5,76],[9.8,64],[10.1,52],[10.5,38],[11.0,22],[11.5,10],[12.0,0]],
+  cr_male:   [[0,0],[20,14],[35,28],[45,43],[55,62],[65,80],[75,88],[85,94],[95,100]],
+  cr_female: [[0,0],[20,14],[35,28],[45,43],[55,62],[65,80],[75,88],[85,94],[95,100]],
+  ps_male:   [[0,0],[10,12],[20,28],[28,40],[35,55],[42,66],[50,76],[60,87],[70,95],[75,100]],
+  ps_female: [[0,0],[5,12],[10,24],[16,38],[22,52],[28,65],[35,77],[42,88],[50,100]],
+  mi_male:   [[320,100],[340,98],[360,96],[380,93],[400,89],[420,84],[440,76],[459,64],[470,56],[480,48],[500,36],[540,20],[600,8],[720,0]],
+  mi_female: [[360,100],[390,97],[420,93],[450,87],[480,78],[508,64],[540,50],[580,36],[630,20],[720,8],[900,0]],
+};
+function iScore(t,v){
+  const d=SC[t]; if(!d) return 0;
+  const s=[...d].sort((a,b)=>a[0]-b[0]);
+  if(v<=s[0][0]) return s[0][1];
+  if(v>=s[s.length-1][0]) return s[s.length-1][1];
+  for(let i=0;i<s.length-1;i++){
+    if(v>=s[i][0]&&v<=s[i+1][0]){
+      const t2=(v-s[i][0])/(s[i+1][0]-s[i][0]);
+      return Math.round(s[i][1]+(s[i+1][1]-s[i][1])*t2);
+    }
+  }
+  return 0;
+}
+
+let calcGender='male';
+const cVals={};
+// Aedan's latest scores — pulled live from LOG so it stays current
+function getAedanLatest(){
+  const keys=['bb','pu','sh','cr','ps','mi'];
+  const out={};
+  keys.forEach(k=>{
+    for(let i=LOG.length-1;i>=0;i--){
+      const v=getVal(LOG[i],k);
+      if(v!==null){out[k]=v;break;}
+    }
+    if(out[k]===undefined) out[k]=null;
+  });
+  return out;
+}
+const CEV=[
+  {key:'bb',label:'Basketball Throw',unit:'ft',
+   male:{t:'bb_male',min:20,max:102,step:1,def:60},female:{t:'bb_female',min:10,max:66,step:1,def:40}},
+  {key:'pu',label:'Pull-ups',unit:'reps',
+   male:{t:'pu_male',min:0,max:18,step:0.5,def:2.5},female:{t:'pu_female',min:0,max:7,step:0.5,def:2}},
+  {key:'sh',label:'40yd Shuttle Run',unit:'sec',
+   male:{t:'sh_male',min:7.8,max:11.0,step:0.1,def:10.10},female:{t:'sh_female',min:8.6,max:12.0,step:0.1,def:10.5}},
+  {key:'cr',label:'Sit-ups / Crunches',unit:'reps',
+   male:{t:'cr_male',min:0,max:95,step:1,def:51},female:{t:'cr_female',min:0,max:95,step:1,def:51}},
+  {key:'ps',label:'Push-ups',unit:'reps',
+   male:{t:'ps_male',min:0,max:75,step:1,def:41},female:{t:'ps_female',min:0,max:50,step:1,def:30}},
+  {key:'mi',label:'1 Mile Run',unit:'sec',
+   male:{t:'mi_male',min:320,max:720,step:5,def:487},female:{t:'mi_female',min:360,max:900,step:5,def:540}},
+];
+const WPS=[
+  {label:'SAT/ACT Math/Science',pts:280,color:'#2b5daf'},
+  {label:'SAT/ACT English/Reading',pts:120,color:'#5a4fcf'},
+  {label:'Class Rank',pts:250,color:'#1a7a4a'},
+  {label:'Sports Participation',pts:150,color:'#8B6914'},
+  {label:'Extracurricular',pts:150,color:'#8b2121'},
+  {label:'CFA Score',pts:50,color:'#C5A028'},
+];
+function setGender(g,btn){
+  calcGender=g;
+  document.querySelectorAll('.gender-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // Clear cached vals so buildCalcUI re-initializes from latest LOG data
+  CEV.forEach(ev=>{ delete cVals[ev.key]; });
+  buildCalcUI();
+}
+function buildCalcUI(){
+  const cont=document.getElementById('calc-events'); cont.innerHTML='';
+  const AEDAN=getAedanLatest();
+  CEV.forEach(ev=>{
+    const cfg=calcGender==='male'?ev.male:ev.female;
+    // Use latest logged score if available, otherwise fall back to cfg.def
+    if(cVals[ev.key]===undefined){
+      cVals[ev.key] = AEDAN[ev.key]!==null ? AEDAN[ev.key] : cfg.def;
+    }
+    const val=cVals[ev.key], pts=iScore(cfg.t,val);
+    const latest=AEDAN[ev.key];
+    const aD=latest===null?'—':(ev.key==='mi'?fmtMile(latest):latest);
+    const dV=ev.key==='mi'?fmtMile(val):val;
+    const div=document.createElement('div'); div.className='calc-event';
+    div.innerHTML=`<div class="calc-event-header">
+        <span class="calc-event-name">${ev.label}<span class="aedan-tag">Aedan: ${aD}</span></span>
+        <span class="calc-event-pts" id="pts-${ev.key}">${pts}<span style="font-size:11px;font-weight:normal;color:rgba(255,255,255,0.4)">/100</span></span>
+      </div>
+      <div class="calc-input-row">
+        <input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" id="sl-${ev.key}" oninput="updCalc('${ev.key}',this.value)">
+        <div class="calc-val-display" id="dv-${ev.key}">${dV}</div>
+      </div>`;
+    cont.appendChild(div);
+  });
+  calcResults();
+}
+function updCalc(key,val){
+  val=parseFloat(val); cVals[key]=val;
+  const ev=CEV.find(e=>e.key===key);
+  const cfg=calcGender==='male'?ev.male:ev.female;
+  const pts=iScore(cfg.t,val);
+  document.getElementById('pts-'+key).innerHTML=pts+'<span style="font-size:11px;font-weight:normal;color:rgba(255,255,255,0.4)">/100</span>';
+  document.getElementById('dv-'+key).textContent=key==='mi'?fmtMile(val):val;
+  calcResults();
+}
+function calcResults(){
+  let total=0; const bd=[];
+  CEV.forEach(ev=>{
+    const cfg=calcGender==='male'?ev.male:ev.female;
+    const val=cVals[ev.key]!==undefined?cVals[ev.key]:cfg.def;
+    const pts=iScore(cfg.t,val); total+=pts;
+    bd.push({label:ev.label,pts,key:ev.key,val,unit:ev.unit});
+  });
+  document.getElementById('r-total').textContent=total;
+  const wps=Math.round(total/600*50*10)/10;
+  document.getElementById('r-wps').textContent=wps.toFixed(1);
+  let pctTxt,pctColor;
+  if(total>=520){pctTxt='Top 10%';pctColor='#48bb78';}
+  else if(total>=470){pctTxt='Top 25%';pctColor='#48bb78';}
+  else if(total>=420){pctTxt='~40th pct';pctColor='#C5A028';}
+  else if(total>=370){pctTxt='~50th pct';pctColor='#C5A028';}
+  else if(total>=300){pctTxt='Bottom 35%';pctColor='#fc8181';}
+  else{pctTxt='Bottom 20%';pctColor='#fc8181';}
+  const pEl=document.getElementById('r-pct'); pEl.textContent=pctTxt; pEl.style.color=pctColor;
+  const usnaAvg=calcGender==='male'
+    ?iScore('bb_male',67)+iScore('pu_male',13)+iScore('sh_male',8.9)+iScore('cr_male',73)+iScore('ps_male',60)+iScore('mi_male',403)
+    :iScore('bb_female',45)+iScore('pu_female',4)+iScore('sh_female',9.5)+iScore('cr_female',73)+iScore('ps_female',35)+iScore('mi_female',480);
+  const diff=total-usnaAvg;
+  const vEl=document.getElementById('r-vs-avg'); vEl.textContent=(diff>=0?'+':'')+diff+' pts'; vEl.style.color=diff>=0?'#48bb78':'#fc8181';
+  const verdict=document.getElementById('r-verdict');
+  if(total>=430){verdict.className='verdict v-pass';verdict.textContent='✓ Competitive — at or above USNA average range';}
+  else if(total>=310){verdict.className='verdict v-cadet';verdict.textContent='⚠ Developing — below average, keep training';}
+  else{verdict.className='verdict v-risk';verdict.textContent='✗ Needs significant improvement before official test';}
+  document.getElementById('r-breakdown').innerHTML=bd.map(b=>`<tr class="${b.pts>=50?'pass-row':'fail-row'}"><td>${b.label}</td><td>${b.key==='mi'?fmtMile(b.val)+' min':b.val+' '+b.unit}</td><td>${b.pts}/100 ${b.pts>=50?'✓':'✗'}</td></tr>`).join('');
+  const wc=document.getElementById('wps-bars'); if(!wc) return;
+  wc.innerHTML=WPS.map(c=>{
+    const isCFA=c.label==='CFA Score';
+    const fill=isCFA?wps:c.pts, pct=(fill/1000*100).toFixed(1);
+    return `<div class="wps-bar-row"><div class="wps-bar-label"><span>${c.label}</span><span style="font-weight:bold;color:${isCFA?'#C5A028':'#333'}">${isCFA?wps.toFixed(1):c.pts}/${c.pts} pts</span></div><div class="wps-bar-track"><div class="wps-bar-fill" style="width:${pct}%;background:${c.color}"></div></div></div>`;
+  }).join('');
+}
+
+</script>
+
+<div class="page" id="page-calculator">
+  <div style="margin-bottom:20px">
+    <div style="font-size:20px;font-weight:bold;color:#001F5B">USNA CFA Score Calculator</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Each event scores 0–100 pts (600 total). CFA = 50 of 1000 WPS points (5%). Interpolated from USNA published anchor points. Aedan's 3/22 scores pre-loaded.</div>
+  </div>
+  <div class="calc-wrap">
+    <div class="calc-form">
+      <h3>Enter Your Scores</h3>
+      <div class="calc-gender">
+        <button class="gender-btn active" onclick="setGender('male',this)">Male</button>
+        <button class="gender-btn" onclick="setGender('female',this)">Female</button>
+      </div>
+      <div id="calc-events"></div>
+    </div>
+    <div>
+      <div class="calc-results">
+        <h3>Your Estimated Score</h3>
+        <div class="score-row">
+          <div class="score-box"><div class="score-box-num" id="r-total">—</div><div class="score-box-denom">out of 600</div><div class="score-box-lbl">CFA Score</div></div>
+          <div class="score-box wps-box"><div class="score-box-num" id="r-wps">—</div><div class="score-box-denom">out of 50</div><div class="score-box-lbl">WPS Points</div></div>
+        </div>
+        <div class="pct-row">
+          <div><div class="pct-val" id="r-pct" style="color:#C5A028">—</div><div class="pct-lbl">Estimated Percentile</div></div>
+          <div style="text-align:right"><div class="pct-val" id="r-vs-avg" style="font-size:16px">—</div><div class="pct-lbl">vs USNA avg score</div></div>
+        </div>
+        <div class="verdict" id="r-verdict">—</div>
+        <table class="ev-breakdown" id="r-breakdown"></table>
+        <div class="calc-note">USNA scores 0–100 pts per event, 600 total. Max performance scores published by USNA. Minimum threshold anchor points from USNA calculator. CFA = 50 of 1000 Whole Person Multiple points.</div>
+      </div>
+      <div class="wps-context">
+        <h4>USNA Whole Person Multiple — 1000 pts total</h4>
+        <div id="wps-bars"></div>
+        <div style="font-size:11px;color:#888;margin-top:10px">CFA is 5% of total WPS. SAT/ACT math/science is the largest single factor (~28%). Source: USNA / GAO research.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ WHOLE PERSON MULTIPLE PAGE ═══════════ -->
+<div class="page" id="page-wps">
+  <div style="margin-bottom:20px">
+    <div class="page-title" style="color:#001F5B;font-size:20px;font-weight:bold">USNA Whole Person Multiple (WPM)</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">WPM = Academics (50%) + Leadership & Experiences (50%), then adjusted ±2.5% based on CFA performance. Source: <a href="https://www.usna.edu/Admissions/Apply/WPM.php" target="_blank" style="color:#001F5B">usna.edu</a></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+    <!-- LEFT COLUMN: inputs -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- ACADEMICS -->
+      <div style="background:#0d1b2e;border-radius:8px;padding:20px">
+        <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Academics — 50% of WPM</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-bottom:16px">SAT Math 18% · SAT/ACT Verbal 10% · Class Rank/GPA 22%</div>
+
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">SAT Math / ACT Math+Science <span class="wps-weight">18%</span></label>
+            <span class="wps-pts" id="w-sat-math-pts">—</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="w-sat-math" class="wps-select" onchange="calcWPS()">
+              <option value="">— select —</option>
+              <option value="180">SAT 800 / ACT 36</option>
+              <option value="162">SAT 750–799 / ACT 34–35</option>
+              <option value="144">SAT 700–749 / ACT 31–33</option>
+              <option value="126">SAT 650–699 / ACT 28–30</option>
+              <option value="108">SAT 610–649 / ACT 26–27 (75th pct)</option>
+              <option value="90">SAT 560–609 / ACT 23–25</option>
+              <option value="72">SAT 500–559 / ACT 20–22 (25th pct)</option>
+              <option value="54">SAT 450–499 / ACT 17–19</option>
+              <option value="36">SAT 400–449 / ACT 14–16</option>
+              <option value="18">SAT below 400 / ACT below 14</option>
+            </select>
+          </div>
+          <div class="wps-note">Class of 2029: SAT 610–720 / ACT 26–32 (25th–75th percentile)</div>
+        </div>
+
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">SAT Verbal / ACT English+Reading <span class="wps-weight">10%</span></label>
+            <span class="wps-pts" id="w-sat-verb-pts">—</span>
+          </div>
+          <select id="w-sat-verb" class="wps-select" onchange="calcWPS()">
+            <option value="">— select —</option>
+            <option value="100">SAT 750–800 / ACT 35–36</option>
+            <option value="90">SAT 700–749 / ACT 32–34</option>
+            <option value="80">SAT 650–699 / ACT 29–31</option>
+            <option value="70">SAT 610–649 / ACT 27–28 (75th pct)</option>
+            <option value="60">SAT 560–609 / ACT 24–26</option>
+            <option value="50">SAT 500–559 / ACT 20–23 (25th pct)</option>
+            <option value="40">SAT 450–499 / ACT 17–19</option>
+            <option value="30">SAT 400–449 / ACT 14–16</option>
+            <option value="20">SAT below 400 / ACT below 14</option>
+          </select>
+          <div class="wps-note">Class of 2029: SAT 600–710 / ACT 49–66 combined (25th–75th percentile)</div>
+        </div>
+
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">Class Rank / GPA <span class="wps-weight">22%</span></label>
+            <span class="wps-pts" id="w-rank-pts">—</span>
+          </div>
+          <select id="w-rank" class="wps-select" onchange="calcWPS()">
+            <option value="">— select —</option>
+            <option value="220">Top 5% of class</option>
+            <option value="198">Top 6–10% (60% of admitted class)</option>
+            <option value="176">Top 11–20%</option>
+            <option value="154">Top 21–30%</option>
+            <option value="132">Top 31–40%</option>
+            <option value="110">Top 41–50%</option>
+            <option value="88">Top 51–60%</option>
+            <option value="66">Bottom 40%</option>
+          </select>
+          <div class="wps-note">Class of 2029: 60% were in top 10% of class</div>
+        </div>
+      </div>
+
+      <!-- LEADERSHIP -->
+      <div style="background:#0d1b2e;border-radius:8px;padding:20px">
+        <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Leadership & Experiences — 50% of WPM</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-bottom:16px">Athletics 16% · Non-athletic ECs 10% · Recommendations 24%</div>
+
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">Athletic Competition & Leadership <span class="wps-weight">16%</span></label>
+            <span class="wps-pts" id="w-ath-pts">—</span>
+          </div>
+          <select id="w-ath" class="wps-select" onchange="calcWPS()">
+            <option value="">— select —</option>
+            <option value="160">Team captain, varsity letter, 2+ sports</option>
+            <option value="140">Team captain OR varsity letter, 2+ sports</option>
+            <option value="120">Varsity letter, 1 sport (team captain)</option>
+            <option value="100">Varsity letter, 1 sport</option>
+            <option value="80">JV or club sport, 2+ years</option>
+            <option value="60">JV or club sport, 1 year</option>
+            <option value="40">Some participation, no letter</option>
+            <option value="20">Minimal participation</option>
+            <option value="0">No sport participation</option>
+          </select>
+        </div>
+
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">Non-Athletic Extracurriculars <span class="wps-weight">10%</span></label>
+            <span class="wps-pts" id="w-ec-pts">—</span>
+          </div>
+          <select id="w-ec" class="wps-select" onchange="calcWPS()">
+            <option value="">— select —</option>
+            <option value="100">Student body / class president, Boys/Girls State governor, national award</option>
+            <option value="85">Class officer, Eagle Scout/Gold Award, multiple leadership roles</option>
+            <option value="70">Club president, NHS president, editor-in-chief, Boys/Girls State delegate</option>
+            <option value="55">Club officer, multiple clubs, Honor Society member</option>
+            <option value="40">Active in clubs, community service, JROTC participation</option>
+            <option value="25">Some organized activity participation</option>
+            <option value="10">Minimal participation</option>
+            <option value="0">No participation</option>
+          </select>
+        </div>
+
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">Recommendations (Teachers, BGO, Others) <span class="wps-weight">24%</span></label>
+            <span class="wps-pts" id="w-rec-pts">—</span>
+          </div>
+          <select id="w-rec" class="wps-select" onchange="calcWPS()">
+            <option value="">— select —</option>
+            <option value="240">Outstanding across all recommenders — exceptional candidate</option>
+            <option value="210">Strong across all recommenders — highly recommended</option>
+            <option value="180">Good overall — recommended with enthusiasm</option>
+            <option value="150">Mixed strong/average — recommended</option>
+            <option value="120">Average across recommenders — recommended with reservations</option>
+            <option value="90">Weak in one or more areas</option>
+          </select>
+          <div class="wps-note">Recommendations carry the most weight in leadership category (24%)</div>
+        </div>
+      </div>
+
+      <!-- CFA ADJUSTMENT -->
+      <div style="background:#0d1b2e;border-radius:8px;padding:20px">
+        <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">CFA Performance Adjustment</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-bottom:16px">Adjusts total WPM by −2.5% to +2.5% based on CFA score</div>
+        <div class="wps-field">
+          <div class="wps-field-header">
+            <label class="wps-label">CFA Score (0–600) <span class="wps-weight">±2.5%</span></label>
+            <span class="wps-pts" id="w-cfa-adj-pts">—</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="range" min="0" max="600" step="1" value="0" id="w-cfa-slider"
+              oninput="document.getElementById('w-cfa-val').value=this.value;calcWPS()"
+              style="flex:1;accent-color:#C5A028;cursor:pointer">
+            <input type="number" id="w-cfa-val" min="0" max="600" value="0"
+              onchange="document.getElementById('w-cfa-slider').value=this.value;calcWPS()"
+              style="width:60px;background:#1a2a3e;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px;color:#fff;font-size:13px;text-align:center">
+          </div>
+          <div class="wps-note">Use the CFA Score Calculator tab to estimate this. Aedan's current est. score: <span id="w-cfa-hint" style="color:#C5A028;font-weight:bold">—</span></div>
+        </div>
+      </div>
+
+    </div><!-- end left -->
+
+    <!-- RIGHT COLUMN: results -->
+    <div style="background:#0d1b2e;border-radius:8px;padding:24px;position:sticky;top:20px">
+      <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px">WPM Estimate</div>
+
+      <!-- Big score -->
+      <div style="text-align:center;padding:20px;border:2px solid #C5A028;border-radius:8px;margin-bottom:14px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Whole Person Multiple</div>
+        <div style="font-size:56px;font-weight:bold;color:#C5A028;line-height:1" id="r-wpm-total">—</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px">out of 1000</div>
+      </div>
+
+      <!-- Percentile + verdict -->
+      <div style="background:#1a2a3e;border-radius:6px;padding:14px;text-align:center;margin-bottom:12px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Est. Percentile vs Admitted Candidates</div>
+        <div style="font-size:24px;font-weight:bold;color:#C5A028" id="r-wpm-pct">—</div>
+      </div>
+
+      <div style="border-radius:6px;padding:12px;font-size:13px;font-weight:bold;text-align:center;margin-bottom:14px" id="r-wpm-verdict"></div>
+
+      <!-- Score breakdown -->
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Score Breakdown</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px" id="r-wpm-table"></table>
+
+      <!-- CFA impact callout -->
+      <div style="background:#1a2a3e;border-radius:6px;padding:12px;font-size:12px;line-height:1.6;color:rgba(255,255,255,0.65)" id="r-cfa-impact"></div>
+
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.3);line-height:1.6">
+        Estimates based on published USNA WPM percentages. Actual scores depend on full application review. Source: <a href="https://www.usna.edu/Admissions/Apply/WPM.php" target="_blank" style="color:rgba(255,255,255,0.4)">usna.edu/Admissions/Apply/WPM.php</a>
+      </div>
+    </div>
+
+  </div><!-- end grid -->
+
+  <!-- Reference chart -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">WPM Component Weights (Source: USNA)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:12px;font-weight:bold;color:#001F5B;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Academics — 50%</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;color:#666">SAT/ACT Math</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;text-align:right;font-weight:bold;color:#001F5B">18%</td></tr>
+          <tr style="background:#f8f9fc"><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;color:#666">SAT/ACT Verbal</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;text-align:right;font-weight:bold;color:#001F5B">10%</td></tr>
+          <tr><td style="padding:5px 8px;color:#666">Class Rank / GPA</td><td style="padding:5px 8px;text-align:right;font-weight:bold;color:#001F5B">22%</td></tr>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:bold;color:#001F5B;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Leadership & Experiences — 50%</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;color:#666">Athletic competition & leadership</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;text-align:right;font-weight:bold;color:#001F5B">16%</td></tr>
+          <tr style="background:#f8f9fc"><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;color:#666">Non-athletic extracurriculars</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;text-align:right;font-weight:bold;color:#001F5B">10%</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;color:#666">Recommendations</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f5;text-align:right;font-weight:bold;color:#001F5B">24%</td></tr>
+          <tr style="background:#f8f9fc"><td style="padding:5px 8px;color:#007030;font-weight:bold">CFA adjustment</td><td style="padding:5px 8px;text-align:right;font-weight:bold;color:#007030">±2.5%</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.wps-field{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.07)}
+.wps-field:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.wps-field-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+.wps-label{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.4}
+.wps-weight{color:#C5A028;font-size:11px;margin-left:4px}
+.wps-pts{font-size:16px;font-weight:bold;color:#C5A028;white-space:nowrap;flex-shrink:0}
+.wps-select{width:100%;background:#1a2a3e;border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:8px 10px;color:#fff;font-size:12px;cursor:pointer}
+.wps-select option{background:#1a2a3e;color:#fff}
+.wps-note{font-size:10px;color:rgba(255,255,255,0.35);margin-top:5px;line-height:1.4}
+.wpm-row td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:12px}
+.wpm-row td:first-child{color:rgba(255,255,255,0.5)}
+.wpm-row td:last-child{text-align:right;font-weight:bold;color:#fff}
+</style>
+
+<script>
+function wpmPercentile(score){
+  if(score>=900) return '95th+';
+  if(score>=850) return '90th';
+  if(score>=800) return '80th';
+  if(score>=750) return '70th';
+  if(score>=700) return '60th';
+  if(score>=650) return '50th';
+  if(score>=600) return '40th';
+  if(score>=550) return '30th';
+  if(score>=500) return '20th';
+  return 'Below 20th';
+}
+
+function calcWPS(){
+  const get = id => { const v=document.getElementById(id).value; return v===''?null:parseFloat(v); };
+
+  const satMath = get('w-sat-math');
+  const satVerb = get('w-sat-verb');
+  const rank    = get('w-rank');
+  const ath     = get('w-ath');
+  const ec      = get('w-ec');
+  const rec     = get('w-rec');
+  const cfaRaw  = get('w-cfa-val') || 0;
+
+  // Update individual point displays
+  const fmt = (v,id) => { document.getElementById(id).textContent = v!==null ? Math.round(v)+' pts' : '—'; };
+  fmt(satMath,'w-sat-math-pts');
+  fmt(satVerb,'w-sat-verb-pts');
+  fmt(rank,'w-rank-pts');
+  fmt(ath,'w-ath-pts');
+  fmt(ec,'w-ec-pts');
+  fmt(rec,'w-rec-pts');
+
+  // CFA adjustment: maps 0-600 linearly to -2.5% to +2.5%
+  // midpoint (300) = 0 adjustment, 0 = -2.5%, 600 = +2.5%
+  const cfaAdjPct = ((cfaRaw / 600) * 5) - 2.5; // -2.5 to +2.5
+  document.getElementById('w-cfa-adj-pts').textContent =
+    (cfaAdjPct >= 0 ? '+' : '') + cfaAdjPct.toFixed(2) + '%';
+
+  const filled = [satMath, satVerb, rank, ath, ec, rec].filter(v=>v!==null);
+  if(filled.length < 3){
+    document.getElementById('r-wpm-total').textContent='—';
+    document.getElementById('r-wpm-pct').textContent='—';
+    document.getElementById('r-wpm-verdict').textContent='Fill in at least 3 fields to see an estimate';
+    document.getElementById('r-wpm-verdict').style.cssText='border-radius:6px;padding:12px 16px;font-size:13px;font-weight:bold;text-align:center;margin-bottom:14px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4)';
+    document.getElementById('r-wpm-table').innerHTML='';
+    document.getElementById('r-cfa-impact').innerHTML='';
+    return;
+  }
+
+  // Base score sum (out of 1000 before CFA adjustment)
+  const baseScore = (satMath||0)+(satVerb||0)+(rank||0)+(ath||0)+(ec||0)+(rec||0);
+
+  // Apply CFA % adjustment to base score
+  const cfaAdjPoints = Math.round(baseScore * cfaAdjPct / 100);
+  const total = Math.round(baseScore + cfaAdjPoints);
+
+  document.getElementById('r-wpm-total').textContent = total;
+
+  const pct = wpmPercentile(total);
+  document.getElementById('r-wpm-pct').textContent = pct;
+
+  // Verdict
+  const vEl = document.getElementById('r-wpm-verdict');
+  let vText, vStyle;
+  if(total>=750){vText='✓ Highly Competitive — strong appointment candidate';vStyle='background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.4);color:#9ae6b4';}
+  else if(total>=600){vText='⚠ Competitive — within range, every point matters';vStyle='background:rgba(197,160,40,0.15);border:1px solid rgba(197,160,40,0.4);color:#fbd38d';}
+  else{vText='✗ Below competitive range — significant improvement needed';vStyle='background:rgba(252,129,129,0.15);border:1px solid rgba(252,129,129,0.4);color:#feb2b2';}
+  vEl.textContent=vText;
+  vEl.style.cssText=`border-radius:6px;padding:12px 16px;font-size:13px;font-weight:bold;text-align:center;margin-bottom:14px;${vStyle}`;
+
+  // Breakdown table
+  const rows=[
+    ['SAT/ACT Math (18%)',    satMath],
+    ['SAT/ACT Verbal (10%)',  satVerb],
+    ['Class Rank/GPA (22%)',  rank],
+    ['Athletics (16%)',       ath],
+    ['Extracurriculars (10%)',ec],
+    ['Recommendations (24%)', rec],
+    ['Subtotal (before CFA)', baseScore],
+    ['CFA adjustment ('+( cfaAdjPct>=0?'+':'')+cfaAdjPct.toFixed(2)+'%)', cfaAdjPoints===0?'—':( cfaAdjPoints>0?'+':'')+cfaAdjPoints+' pts'],
+  ];
+
+  document.getElementById('r-wpm-table').innerHTML = rows.map(([label,val])=>`
+    <tr class="wpm-row">
+      <td>${label}</td>
+      <td>${val===null?'—':val}</td>
+    </tr>
+  `).join('') + `<tr style="border-top:2px solid rgba(197,160,40,0.4)">
+    <td style="padding:8px;font-weight:bold;color:#C5A028;font-size:13px">Total WPM</td>
+    <td style="padding:8px;font-weight:bold;color:#C5A028;font-size:16px;text-align:right">${total}</td>
+  </tr>`;
+
+  // CFA impact callout
+  const maxCFA=600, minAdj=-2.5, maxAdj=2.5;
+  const cfaAtMax   = Math.round(baseScore * 1.025);
+  const cfaAtMin   = Math.round(baseScore * 0.975);
+  const cfaGain    = cfaAtMax - cfaAtMin;
+  document.getElementById('r-cfa-impact').innerHTML=
+    `<strong style="color:rgba(255,255,255,0.8)">CFA impact on your WPM:</strong><br>
+    Perfect CFA (600 pts) → +2.5% → <strong style="color:#9ae6b4">${cfaAtMax} WPM</strong><br>
+    Minimum CFA pass → −2.5% → <strong style="color:#fc8181">${cfaAtMin} WPM</strong><br>
+    Total swing from CFA alone: <strong style="color:#C5A028">${cfaGain} points</strong><br>
+    <span style="color:rgba(255,255,255,0.4);font-size:10px">Current CFA score: ${cfaRaw}/600 → ${(cfaAdjPct>=0?'+':'')+cfaAdjPct.toFixed(2)}% adjustment</span>`;
+}
+
+// On load, pre-populate CFA score hint from calculator if available
+function syncCFAHint(){
+  try{
+    // Sum up current calc vals using USNA scoring
+    let total=0;
+    ['bb','pu','sh','cr','ps','mi'].forEach(k=>{
+      const cfg=USNA_SCORING[k]['male'];
+      const val=calcVals[k]!==undefined?calcVals[k]:cfg.def;
+      total+=usnaScore(k,val);
+    });
+    document.getElementById('w-cfa-hint').textContent=total+' pts';
+    // Auto-populate slider if it's still at 0
+    const slider=document.getElementById('w-cfa-slider');
+    if(slider && parseInt(slider.value)===0){
+      slider.value=total;
+      document.getElementById('w-cfa-val').value=total;
+      calcWPS();
+    }
+  }catch(e){}
+}
+setTimeout(syncCFAHint, 500);
+
+// ═══════════════════════════════════════════════
+// WEIGHT / CFA CORRELATION CALLOUT
+// ═══════════════════════════════════════════════
+function renderWeightCallout(){
+  const wtVals = LOG.filter(r=>getVal(r,'wt')!==null).map(r=>getVal(r,'wt'));
+  const puVals = LOG.filter(r=>getVal(r,'pu')!==null).map(r=>getVal(r,'pu'));
+  const miVals = LOG.filter(r=>getVal(r,'mi')!==null).map(r=>getVal(r,'mi'));
+  if(wtVals.length < 1) return;
+
+  const currentWt = wtVals[wtVals.length-1];
+  const targetWt  = USNA['wt'].avg; // 190
+  const wtDiff    = currentWt - targetWt; // positive = currently heavier than target
+
+  const el = document.getElementById('weight-callout');
+  const txt = document.getElementById('weight-callout-text');
+  const cards = document.getElementById('weight-callout-cards');
+  el.style.display = 'block';
+
+  // Impact: losing weight HELPS pull-ups and mile
+  // +0.4 pull-up reps gained per 5 lbs lost
+  // ~8 sec faster mile per 5 lbs lost
+  const puGain   = Math.round((wtDiff / 5) * 0.4 * 10) / 10; // positive = more reps at target wt
+  const miGain   = Math.round((wtDiff / 5) * 8);               // positive = fewer seconds at target wt
+
+  const currentPU = puVals.length ? puVals[puVals.length-1] : null;
+  const currentMI = miVals.length ? miVals[miVals.length-1] : null;
+
+  // Projected scores AT target weight
+  const projPU = currentPU !== null ? Math.round((currentPU + puGain) * 10) / 10 : null;
+  const projMI = currentMI !== null ? Math.round(currentMI - miGain) : null;
+
+  if(wtDiff > 0.5){
+    txt.innerHTML = `Current weight <strong style="color:#C5A028">${currentWt} lbs</strong> is ${wtDiff.toFixed(1)} lbs above the ${targetWt} lb target.
+      Reaching ${targetWt} lbs would estimate <strong style="color:#9ae6b4">+${Math.abs(puGain)} pull-up reps</strong> and
+      <strong style="color:#9ae6b4">${fmtMile(Math.abs(miGain))} faster mile</strong> based on body weight ratios.
+      Every 5 lbs matters most on pull-ups and the run.`;
+  } else if(wtDiff < -0.5){
+    txt.innerHTML = `Weight <strong style="color:#9ae6b4">${currentWt} lbs</strong> — ${Math.abs(wtDiff).toFixed(1)} lbs below the ${targetWt} lb target. Good position for pull-ups and the mile run.`;
+  } else {
+    txt.innerHTML = `Weight <strong style="color:#9ae6b4">${currentWt} lbs</strong> — right at the ${targetWt} lb target. Ideal for CFA performance.`;
+  }
+
+  cards.innerHTML = `
+    <div style="background:#1a2a3e;border-radius:6px;padding:12px 16px;text-align:center;min-width:110px">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pull-ups at ${targetWt} lbs</div>
+      <div style="font-size:20px;font-weight:bold;color:${projPU!==null&&projPU>=(currentPU||0)?'#9ae6b4':'#fca5a5'}">${projPU!==null?projPU:'—'}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">est. reps (+${Math.abs(puGain)})</div>
+    </div>
+    <div style="background:#1a2a3e;border-radius:6px;padding:12px 16px;text-align:center;min-width:110px">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Mile at ${targetWt} lbs</div>
+      <div style="font-size:20px;font-weight:bold;color:${projMI!==null&&projMI<=(currentMI||9999)?'#9ae6b4':'#fca5a5'}">${projMI!==null?fmtMile(projMI):'—'}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">est. time (-${fmtMile(Math.abs(miGain))})</div>
+    </div>`;
+}
+</script>
+
+<!-- ═══════════ TRAINING PLAN PAGE ═══════════ -->
+<div class="page" id="page-training">
+  <div style="margin-bottom:20px">
+    <div class="page-title" style="color:#001F5B;font-size:20px;font-weight:bold">Training Plan</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Weekly structure based on current scores and days to Jun 13 CFA. Updates as you log new scores.</div>
+  </div>
+  <div id="training-content"></div>
+</div>
+
+<!-- ═══════════ TEST SCORES PAGE ═══════════ -->
+<div class="page" id="page-scores">
+  <div style="margin-bottom:20px">
+    <div class="page-title" style="color:#001F5B;font-size:20px;font-weight:bold">SAT / ACT Score Tracker</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Logs saved to Supabase. Superscores calculated automatically.</div>
+  </div>
+
+  <!-- Entry form -->
+  <div style="background:#0d1b2e;border-radius:8px;padding:22px;margin-bottom:20px">
+    <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px">Log a Test Attempt</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:16px">
+      <div class="form-field">
+        <label>Test Date</label>
+        <input type="date" id="ts-date">
+      </div>
+      <div class="form-field">
+        <label>Test Type</label>
+        <select id="ts-type" style="width:100%;background:#1a2a3e;border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:10px 12px;color:#fff;font-size:14px">
+          <option value="SAT">SAT</option>
+          <option value="ACT">ACT</option>
+        </select>
+      </div>
+      <div class="form-field" id="sat-fields">
+        <label>SAT Math</label>
+        <input type="number" id="ts-sat-math" placeholder="200–800" min="200" max="800" step="10">
+      </div>
+      <div class="form-field">
+        <label id="ts-verbal-label">SAT R&W</label>
+        <input type="number" id="ts-verbal" placeholder="200–800" min="200" max="800" step="10">
+      </div>
+      <div class="form-field" id="act-extra-fields" style="display:none">
+        <label>ACT Science</label>
+        <input type="number" id="ts-act-science" placeholder="1–36" min="1" max="36">
+      </div>
+      <div class="form-field" id="act-reading-field" style="display:none">
+        <label>ACT Reading</label>
+        <input type="number" id="ts-act-reading" placeholder="1–36" min="1" max="36">
+      </div>
+      <div class="form-field">
+        <label>Notes</label>
+        <input type="text" id="ts-notes" placeholder="e.g. Khan prep, official test">
+      </div>
+    </div>
+    <button class="btn-save" id="ts-save-btn" onclick="saveTestScore()">Save Score</button>
+  </div>
+
+  <!-- Superscore summary -->
+  <div id="superscore-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px"></div>
+
+  <!-- Color legend -->
+  <div style="background:#0d1b2e;border-radius:8px;padding:12px 18px;margin-bottom:20px;display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+    <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;flex-shrink:0">Score color key:</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9ae6b4">
+      <div style="width:12px;height:12px;border-radius:50%;background:#9ae6b4;flex-shrink:0"></div>
+      <span>At or above midpoint — closer to 75th percentile</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#C5A028">
+      <div style="width:12px;height:12px;border-radius:50%;background:#C5A028;flex-shrink:0"></div>
+      <span>Between 25th percentile and midpoint</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#fca5a5">
+      <div style="width:12px;height:12px;border-radius:50%;background:#fca5a5;flex-shrink:0"></div>
+      <span>Below 25th percentile</span>
+    </div>
+    <div style="width:100%;border-top:1px solid rgba(255,255,255,0.07);padding-top:10px;margin-top:2px">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">USNA percentile ranges (Class of 2029) — midpoint shown on each bar above</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:rgba(255,255,255,0.45)">
+        <span>SAT Total: 1210–1430</span>
+        <span>SAT Math: 610–720</span>
+        <span>SAT Verbal: 600–710</span>
+        <span>ACT Composite: 25–31</span>
+        <span>ACT Math: 25–31</span>
+        <span>ACT English: 24–33</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- History table -->
+  <div class="session-history">
+    <div class="sh-header"><h3>Score History</h3></div>
+    <div style="overflow-x:auto">
+      <table class="log-table">
+        <thead><tr>
+          <th>Date</th><th>Type</th><th>Math / Science</th><th>Verbal / E+R</th><th>Composite / Total</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody id="scores-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Training plan styles */
+.week-block{background:#fff;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:14px;overflow:hidden}
+.week-header{background:#0d1b2e;padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
+.week-title{color:#C5A028;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase}
+.week-focus{color:rgba(255,255,255,0.6);font-size:11px}
+.day-row{display:grid;grid-template-columns:100px 1fr;gap:0;border-bottom:1px solid #f0f2f5}
+.day-row:last-child{border-bottom:none}
+.day-label{padding:11px 14px;font-weight:bold;font-size:12px;color:#001F5B;background:#f5f7fc;border-right:1px solid #e2e8f0;display:flex;align-items:center}
+.day-content{padding:11px 16px;font-size:13px;color:#2d3748;line-height:1.5}
+.day-content .tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:bold;letter-spacing:0.5px;margin-right:5px;text-transform:uppercase}
+.tag-pull{background:#dbeafe;color:#1e40af}
+.tag-run{background:#dcfce7;color:#166534}
+.tag-plyo{background:#fef3c7;color:#92400e}
+.tag-shuttle{background:#fce7f3;color:#9d174d}
+.tag-push{background:#f3e8ff;color:#6b21a8}
+.tag-rest{background:#f1f5f9;color:#64748b}
+.tag-cfa{background:#fee2e2;color:#991b1b}
+.plyo-note{margin-top:6px;font-size:11px;color:#666;font-style:italic;padding:6px 10px;background:#fffbeb;border-radius:4px;border-left:3px solid #C5A028}
+.training-insight{background:#0d1b2e;border-radius:8px;padding:16px 20px;margin-bottom:16px}
+.training-insight-title{color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.insight-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:rgba(255,255,255,0.75)}
+.insight-row:last-child{border-bottom:none}
+.insight-ev{width:130px;color:rgba(255,255,255,0.5);font-size:11px}
+.insight-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden}
+.insight-bar{height:6px;border-radius:3px;transition:width 0.4s}
+.insight-rec{font-size:11px;color:rgba(255,255,255,0.5);min-width:180px;text-align:right}
+@media(max-width:640px){
+  .day-row{grid-template-columns:70px 1fr}
+  .day-label{font-size:11px;padding:8px 8px}
+  .day-content{padding:8px 10px;font-size:12px}
+  #page-scores .form-field{min-width:140px}
+}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════
+// TRAINING PLAN
+// ═══════════════════════════════════════════════
+function renderTraining(){
+  const container = document.getElementById('training-content');
+  if(!container) return;
+
+  // Get latest scores
+  const latest = {};
+  ['bb','pu','sh','cr','ps','mi','wt'].forEach(k=>{
+    latest[k] = getLatest(k);
+  });
+
+  const dl = daysLeft();
+  const weeksLeft = Math.ceil(dl / 7);
+
+  // Determine priority events based on gap to avg
+  const priorities = ['bb','pu','sh','cr','ps','mi'].map(k=>{
+    const ev = EVENTS.find(e=>e.key===k);
+    const score = latest[k];
+    const avg = USNA[k].avg;
+    const base = getBase(k);
+    const pct = pctClosed(score, base, avg, ev.higher);
+    const projected = trendAtTarget(k, ev.higher);
+    const onTrack = ev.higher ? projected >= avg : projected <= avg;
+    return {key:k, name:ev.name, pct, onTrack, score, avg, higher:ev.higher};
+  }).sort((a,b)=> a.pct - b.pct); // lowest % first = highest priority
+
+  const topPriority = priorities.filter(p=>!p.onTrack).slice(0,3).map(p=>p.key);
+
+  // Pull-up GTG — latest from LOG, GTG set = half of max rounded to nearest whole
+  const puCurrent = latest['pu'] !== null ? latest['pu'] : 2;
+  const puGTGset  = Math.max(1, Math.round(puCurrent / 2));
+
+  // Mile current for pacing context
+  const miCurrent = latest['mi'] || 487;
+  const miPace = fmtMile(Math.round(miCurrent / 1.05));
+
+  container.innerHTML = '';
+
+  // ── Priority insight bar ──────────────────────────────────────
+  const insightDiv = document.createElement('div');
+  insightDiv.className = 'training-insight';
+  insightDiv.innerHTML = `
+    <div class="training-insight-title">Current Focus Areas — ${weeksLeft} weeks to Jun 13</div>
+    ${priorities.map(p=>{
+      const barColor = p.onTrack ? '#22c55e' : p.pct > 50 ? '#C5A028' : '#ef4444';
+      const rec = p.onTrack ? 'On track — maintain' :
+        p.key==='pu' ? `GTG: ${puGTGset} reps × 5 sets/day` :
+        p.key==='mi' ? 'Intervals + easy runs' :
+        p.key==='sh' ? 'Plyo + sprint drills' :
+        p.key==='cr' ? '2-min sets daily' :
+        p.key==='ps' ? 'Max sets daily' :
+        'Technique + practice';
+      return `<div class="insight-row">
+        <div class="insight-ev">${p.name}</div>
+        <div class="insight-bar-wrap"><div class="insight-bar" style="width:${Math.min(100,p.pct)}%;background:${barColor}"></div></div>
+        <div class="insight-rec">${rec}</div>
+      </div>`;
+    }).join('')}
+  `;
+  container.appendChild(insightDiv);
+
+  // ── Weekly schedule ───────────────────────────────────────────
+  const plyoNote = `<div class="plyo-note">💡 <strong>Plyo warmup (10 min, at home):</strong> Single-leg bounds down the hallway × 10 each leg (go), switch legs on the way back. Repeat 3 rounds. Broad jumps in place × 5. 2 × 10yd acceleration burst. No box needed — just floor space. Do this immediately before sprint work to prime fast-twitch fibers.</div>`;
+
+  const rhrNote = `<div class="plyo-note" style="border-color:#22c55e;background:#f0fdf4">❤️ <strong>RHR 40–46 bpm</strong> — elite aerobic base. This means his cardiovascular system is recovering efficiently and his mile time has real upside. Keep the easy runs truly easy to protect this adaptation.</div>`;
+
+  const days = [
+    {
+      label: 'Monday',
+      content: `<span class="tag tag-run">2 Mile Run</span><span class="tag tag-pull">GTG</span><span class="tag tag-pull">Strength</span>
+        <br><strong>Morning:</strong> 2 mile run. Home plyo warmup optional before the run.
+        <br><strong>Evening:</strong> Strength training.
+        <br><strong>Throughout day:</strong> Pull-up GTG — ${puGTGset} reps × 5 sets.
+        ${rhrNote}`
+    },
+    {
+      label: 'Tuesday',
+      content: `<span class="tag tag-plyo">Plyo Warmup</span><span class="tag tag-shuttle">Sprint Training</span><span class="tag tag-pull">GTG</span><span class="tag tag-pull">Strength</span>
+        <br><strong>Morning:</strong> 10 min home plyo warmup, then sprint training.
+        <br><strong>Evening:</strong> Strength training.
+        <br><strong>Throughout day:</strong> Pull-up GTG — ${puGTGset} reps × 5 sets.
+        <br><strong>5 min when you can:</strong> Max push-ups or max crunches in CFA form.
+        ${plyoNote}`
+    },
+    {
+      label: 'Wednesday',
+      content: `<span class="tag tag-run">2 Mile Run</span><span class="tag tag-pull">GTG</span><span class="tag tag-pull">Strength</span>
+        <br><strong>Morning:</strong> 2 mile run.
+        <br><strong>Evening:</strong> Strength training.
+        <br><strong>Throughout day:</strong> Pull-up GTG — ${puGTGset} reps × 5 sets.
+        <br><strong>5 min when you can:</strong> Max push-ups or max crunches in CFA form.`
+    },
+    {
+      label: 'Thursday',
+      content: `<span class="tag tag-plyo">Plyo Warmup</span><span class="tag tag-shuttle">Sprint Training</span><span class="tag tag-pull">GTG</span><span class="tag tag-pull">Strength</span>
+        <br><strong>Morning:</strong> 10 min home plyo warmup, then sprint training.
+        <br><strong>Evening:</strong> Strength training.
+        <br><strong>Throughout day:</strong> Pull-up GTG — ${puGTGset} reps × 5 sets.
+        <br><strong>5 min when you can:</strong> Basketball throw practice — 10 throws, focus on hip rotation.
+        ${plyoNote}`
+    },
+    {
+      label: 'Friday',
+      content: `<span class="tag tag-run">2 Mile Run</span><span class="tag tag-pull">GTG</span><span class="tag tag-pull">Strength</span>
+        <br><strong>Morning:</strong> 2 mile run.
+        <br><strong>Evening:</strong> Strength training.
+        <br><strong>Throughout day:</strong> Pull-up GTG — ${puGTGset} reps × 5 sets.
+        <br><span style="color:#991b1b"><strong>CFA sim week (every 2 weeks):</strong> REST — no running, no strength, no intensity. Full rest Friday and Saturday before Sunday sim.</span>`
+    },
+    {
+      label: 'Saturday',
+      content: `<span class="tag tag-rest">Rest Day — Always</span>
+        <br>Complete rest every Saturday. No training. Sleep, eat, recover.`
+    },
+    {
+      label: 'Sunday',
+      content: `<span class="tag tag-cfa">Full CFA Sim (every 2 weeks)</span><span class="tag tag-rest">Active Rest (off weeks)</span>
+        <br><strong>Every 2 weeks:</strong> Full CFA simulation in official sequence — basketball throw, pull-ups, shuttle, crunches, push-ups, 1-mile run. Official timing: 2 min work, 3 min rest per event, 8 min rest before mile.
+        <br><strong>Off weeks:</strong> Active rest only. Light walk, mobility work. Pull-up GTG: ${puGTGset} reps × 3 sets max.`
+    },
+  ];
+
+  const weekDiv = document.createElement('div');
+  weekDiv.className = 'week-block';
+  weekDiv.innerHTML = `
+    <div class="week-header">
+      <span class="week-title">Weekly Training Structure</span>
+      <span class="week-focus">Run mornings (Mon/Wed/Fri) · Sprints mornings (Tue/Thu) · Strength evenings (M–F) · Rest Sat · CFA Sim Sun (every 2 weeks)</span>
+    </div>
+    ${days.map(d=>`
+      <div class="day-row">
+        <div class="day-label">${d.label}</div>
+        <div class="day-content">${d.content}</div>
+      </div>
+    `).join('')}
+  `;
+  container.appendChild(weekDiv);
+
+  // ── Pull-up GTG explainer ─────────────────────────────────────
+  const gtgDiv = document.createElement('div');
+  gtgDiv.className = 'week-block';
+  gtgDiv.innerHTML = `
+    <div class="week-header">
+      <span class="week-title">Pull-up GTG Protocol — Greasing the Groove</span>
+      <span class="week-focus">Most effective method for rapid pull-up gains</span>
+    </div>
+    <div class="day-row">
+      <div class="day-label">What</div>
+      <div class="day-content">Sub-maximal sets spread throughout the day. Current max from log: <strong>${puCurrent} reps</strong> → GTG set = half, rounded = <strong>${puGTGset} reps per set</strong>. Never go to failure. Updates automatically as you log new scores.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">How</div>
+      <div class="day-content">5–6 sets per day, minimum 30 min apart. Use a doorframe bar. Add a slow 3-second negative (lowering phase) on every rep — this builds pulling strength faster than fast reps.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">When to see it</div>
+      <div class="day-content">Nervous system adapts in <strong>2–3 weeks</strong>. Expect first noticeable jump at the 3-week mark. Strength gains compound — once you hit 4 clean reps, 8 follows faster than 2→4 did.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">CFA form</div>
+      <div class="day-content">Pronated grip (palms away). Dead hang start. Chin clears bar. No kipping or swinging. Practice cadence pull-ups — USNA uses a commanded pace, not max speed.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">RHR note</div>
+      <div class="day-content">RHR 40–46 bpm is an excellent sign — his nervous system is recovering well between GTG sets. This means he can handle the daily volume without overtraining.</div>
+    </div>
+  `;
+  container.appendChild(gtgDiv);
+
+  // ── Plyo timing detail ────────────────────────────────────────
+  const plyoDiv = document.createElement('div');
+  plyoDiv.className = 'week-block';
+  plyoDiv.innerHTML = `
+    <div class="week-header">
+      <span class="week-title">Home Plyometrics for Shuttle + Sprint Speed</span>
+      <span class="week-focus">Tue + Thu mornings, 10 min before sprints — no equipment needed</span>
+    </div>
+    <div class="day-row">
+      <div class="day-label">Why before</div>
+      <div class="day-content">Plyo primes fast-twitch fibers and activates the stretch-shortening cycle. Running sprints immediately after captures that neuromuscular activation — stride rate and ground contact time improve within the same session.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">The session</div>
+      <div class="day-content"><strong>3 rounds, ~10 min, in the hallway:</strong><br>• Single-leg bounds down the hall × 10 each leg → switch legs on the way back (great for shuttle lateral power)<br>• Broad jumps × 5 in place (max distance, stick the landing)<br>• 2 × 10yd acceleration burst<br>60 sec rest between rounds. Explosive but not exhausting.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">Timeline</div>
+      <div class="day-content"><strong>Weeks 1–2:</strong> Legs may feel heavy after — normal, adaptation happening.<br><strong>Weeks 3–4:</strong> Stride starts feeling snappier, first turns on shuttle feel quicker.<br><strong>Weeks 5–6:</strong> Measurable drop in shuttle time. Most athletes see 0.2–0.4 sec improvement by week 5–6 with consistent Tue/Thu plyo. His current 9.5 sec has real room to drop.</div>
+    </div>
+    <div class="day-row">
+      <div class="day-label">Rules</div>
+      <div class="day-content">Quality over quantity — if form breaks down, stop the round. Never do plyo the day before a full CFA simulation (Fri/Sat are rest on sim week). At least 48h between plyo sessions, which Tue/Thu naturally provides.</div>
+    </div>
+  `;
+  container.appendChild(plyoDiv);
+}
+
+// ═══════════════════════════════════════════════
+// TEST SCORES (Supabase: test_scores table)
+// ═══════════════════════════════════════════════
+let TEST_SCORES = [];
+
+// Seed with Aedan's known scores
+const SEED_SCORES = [
+  {date:'2025-03-01', type:'ACT', math:29, verbal:28, science:29, reading:33, notes:'ACT March 2025 — composite 30'},
+  {date:'2025-08-01', type:'SAT', math:630, verbal:670, science:null, reading:null, notes:'SAT August 2025 — 1300'},
+  {date:'2025-12-01', type:'SAT', math:660, verbal:630, science:null, reading:null, notes:'SAT December 2025 — 1290'},
+  {date:'2026-03-14', type:'SAT', math:640, verbal:650, science:null, reading:null, notes:'SAT March 2026 — 1290'},
+];
+
+// Toggle ACT-specific fields
+document.getElementById('ts-type').addEventListener('change', function(){
+  const isACT = this.value === 'ACT';
+  document.getElementById('ts-sat-math').placeholder = isACT ? '1–36 (Math)' : '200–800';
+  document.getElementById('ts-sat-math').max = isACT ? 36 : 800;
+  document.getElementById('ts-sat-math').min = isACT ? 1 : 200;
+  document.getElementById('ts-verbal').placeholder = isACT ? '1–36 (English)' : '200–800';
+  document.getElementById('ts-verbal').max = isACT ? 36 : 800;
+  document.getElementById('ts-verbal').min = isACT ? 1 : 200;
+  document.getElementById('ts-verbal-label').textContent = isACT ? 'ACT English' : 'SAT R&W';
+  document.getElementById('act-extra-fields').style.display = isACT ? '' : 'none';
+  document.getElementById('act-reading-field').style.display = isACT ? '' : 'none';
+  document.getElementById('sat-fields').querySelector('label').textContent = isACT ? 'ACT Math' : 'SAT Math';
+});
+
+async function saveTestScore(){
+  const date  = document.getElementById('ts-date').value;
+  const type  = document.getElementById('ts-type').value;
+  const math  = parseFloat(document.getElementById('ts-sat-math').value)||null;
+  const verbal= parseFloat(document.getElementById('ts-verbal').value)||null;
+  const sci   = parseFloat(document.getElementById('ts-act-science').value)||null;
+  const rdg   = parseFloat(document.getElementById('ts-act-reading').value)||null;
+  const notes = document.getElementById('ts-notes').value||'';
+  if(!date||!math||!verbal){alert('Please enter date, math, and verbal scores.');return;}
+
+  const entry = {date, type, math, verbal, science:sci, reading:rdg, notes};
+  const btn = document.getElementById('ts-save-btn');
+  btn.textContent='Saving…'; btn.disabled=true;
+
+  const saved = {...entry, id: Date.now()};
+  TEST_SCORES.push(saved);
+  TEST_SCORES.sort((a,b)=>a.date.localeCompare(b.date));
+  LS.set('test_scores', TEST_SCORES);
+  ['ts-date','ts-sat-math','ts-verbal','ts-act-science','ts-act-reading','ts-notes']
+    .forEach(id=>document.getElementById(id).value='');
+  renderScores();
+  btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
+  setTimeout(()=>{btn.textContent='Save Score';btn.style.background='';btn.disabled=false;},1500);
+  try{ await SB.insert('test_scores', entry); }catch(e){}
+}
+
+async function deleteScore(id){
+  if(!confirm('Delete this score?')) return;
+  TEST_SCORES = TEST_SCORES.filter(s=>s.id!==id);
+  LS.set('test_scores', TEST_SCORES);
+  renderScores();
+  try{ await SB.delete('test_scores', id); }catch(e){}
+}
+
+function getSuperscore(){
+  const sats = TEST_SCORES.filter(s=>s.type==='SAT');
+  const acts = TEST_SCORES.filter(s=>s.type==='ACT');
+  const satMath  = sats.length ? Math.max(...sats.map(s=>s.math||0))  : null;
+  const satVerbal= sats.length ? Math.max(...sats.map(s=>s.verbal||0)): null;
+  const actMath  = acts.length ? Math.max(...acts.map(s=>s.math||0))  : null;
+  const actEng   = acts.length ? Math.max(...acts.map(s=>s.verbal||0)): null;
+  const actSci   = acts.length ? Math.max(...acts.map(s=>s.science||0)):null;
+  const actRdg   = acts.length ? Math.max(...acts.map(s=>s.reading||0)):null;
+  // ACT composite = avg of 4 sections rounded
+  const actComp  = (actMath&&actEng&&actSci&&actRdg)
+    ? Math.round((actMath+actEng+actSci+actRdg)/4) : null;
+  return {satMath, satVerbal, satTotal:(satMath&&satVerbal)?satMath+satVerbal:null,
+          actMath, actEng, actSci, actRdg, actComp};
+}
+
+function renderScores(){
+  const ss = getSuperscore();
+  const cards = document.getElementById('superscore-cards');
+  const cardStyle = 'background:#0d1b2e;border-radius:8px;padding:16px 20px';
+  const lbl = (t) => `<div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${t}</div>`;
+  const big = (v,c='#C5A028') => `<div style="font-size:28px;font-weight:bold;color:${c};line-height:1">${v??'—'}</div>`;
+  const sub = (t) => `<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px">${t}</div>`;
+  const pctBar = (v, lo, hi, lolbl, hilbl) => {
+    if(v===null) return '';
+    const mid = (lo+hi)/2;
+    const midLbl = Number.isInteger(mid) ? mid : mid.toFixed(1);
+    const clr = v>=mid ? '#9ae6b4' : v>=lo ? '#C5A028' : '#fca5a5';
+    const pct    = Math.min(100, Math.max(0, ((v-lo)/(hi-lo))*100));
+    const midPct = 50; // midpoint is always 50% of the bar
+    return `<div style="margin-top:6px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.3);margin-bottom:2px">
+        <span>25th: ${lolbl}</span>
+        <span style="color:rgba(255,255,255,0.5);font-weight:bold">mid: ${midLbl}</span>
+        <span>75th: ${hilbl}</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.1);border-radius:3px;height:7px;position:relative">
+        <div style="width:${pct}%;height:7px;border-radius:3px;background:${clr};transition:width 0.4s"></div>
+        <!-- midpoint tick -->
+        <div style="position:absolute;left:50%;top:-1px;width:2px;height:9px;background:rgba(255,255,255,0.4);transform:translateX(-50%)"></div>
+      </div>
+      <div style="font-size:10px;color:${clr};margin-top:3px;font-weight:bold">${v>=mid?'Above midpoint — closer to 75th':'Below midpoint — closer to 25th'}</div>
+    </div>`;
+  };
+
+  // Color helpers using midpoint logic
+  const satMathClr  = ss.satMath  ? (ss.satMath  >= 665 ? '#9ae6b4' : ss.satMath  >= 610 ? '#C5A028' : '#fca5a5') : '#C5A028';
+  const satVerbClr  = ss.satVerbal? (ss.satVerbal >= 655 ? '#9ae6b4' : ss.satVerbal >= 600 ? '#C5A028' : '#fca5a5') : '#C5A028';
+  const satTotalClr = ss.satTotal ? (ss.satTotal  >=1320 ? '#9ae6b4' : ss.satTotal  >=1210 ? '#C5A028' : '#fca5a5') : '#C5A028';
+  const actCompClr  = ss.actComp  ? (ss.actComp  >= 28   ? '#9ae6b4' : ss.actComp  >= 25   ? '#C5A028' : '#fca5a5') : '#C5A028';
+  const actMathClr  = ss.actMath  ? (ss.actMath  >= 28   ? '#9ae6b4' : ss.actMath  >= 25   ? '#C5A028' : '#fca5a5') : '#C5A028';
+  const actEngClr   = ss.actEng   ? (ss.actEng   >= 28.5 ? '#9ae6b4' : ss.actEng   >= 24   ? '#C5A028' : '#fca5a5') : '#C5A028';
+
+  cards.innerHTML = `
+    <div style="${cardStyle}">
+      ${lbl('SAT Superscore')}
+      ${big(ss.satTotal, satTotalClr)}
+      ${sub(`Math: ${ss.satMath??'—'} · R&W: ${ss.satVerbal??'—'}`)}
+      ${pctBar(ss.satTotal, 1210, 1430, '1210', '1430')}
+    </div>
+    <div style="${cardStyle}">
+      ${lbl('SAT Math Best')}
+      ${big(ss.satMath, satMathClr)}
+      ${pctBar(ss.satMath, 610, 720, '610', '720')}
+    </div>
+    <div style="${cardStyle}">
+      ${lbl('SAT Verbal / R&W Best')}
+      ${big(ss.satVerbal, satVerbClr)}
+      ${pctBar(ss.satVerbal, 600, 710, '600', '710')}
+    </div>
+    <div style="${cardStyle}">
+      ${lbl('ACT Composite (best)')}
+      ${big(ss.actComp, actCompClr)}
+      ${sub(`Math: <span style="color:${actMathClr};font-weight:bold">${ss.actMath??'—'}</span> · Eng: <span style="color:${actEngClr};font-weight:bold">${ss.actEng??'—'}</span> · Sci: ${ss.actSci??'—'} · Rdg: ${ss.actRdg??'—'}`)}
+      ${pctBar(ss.actComp, 25, 31, '25', '31')}
+    </div>
+    <div style="${cardStyle}">
+      ${lbl('ACT Math Best')}
+      ${big(ss.actMath, actMathClr)}
+      ${pctBar(ss.actMath, 25, 31, '25', '31')}
+    </div>
+    <div style="${cardStyle}">
+      ${lbl('ACT English Best')}
+      ${big(ss.actEng, actEngClr)}
+      ${pctBar(ss.actEng, 24, 33, '24', '33')}
+    </div>
+  `;
+
+  const tbody = document.getElementById('scores-tbody');
+  tbody.innerHTML = '';
+  [...TEST_SCORES].reverse().forEach(s=>{
+    const comp = s.type==='SAT'
+      ? ((s.math||0)+(s.verbal||0)) || '—'
+      : (s.math&&s.verbal&&s.science&&s.reading)
+        ? Math.round((s.math+s.verbal+s.science+s.reading)/4)
+        : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.date}</td>
+      <td><strong>${s.type}</strong></td>
+      <td>${s.math??'—'}</td>
+      <td>${s.verbal??'—'}${s.type==='ACT'&&s.reading?' / '+s.reading:''}</td>
+      <td style="font-weight:bold">${comp}</td>
+      <td style="color:#666;font-style:italic">${s.notes||''}</td>
+      <td><button class="btn-del" onclick="deleteScore(${s.id})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function initTestScores(){
+  const saved = LS.get('test_scores');
+  if(saved && saved.length > 0){
+    TEST_SCORES = saved;
+  } else {
+    TEST_SCORES = SEED_SCORES.map((s,i)=>({...s,id:i+1}));
+    LS.set('test_scores', TEST_SCORES);
+  }
+  renderScores();
+  // Try Supabase in background
+  try{
+    const rows = await SB.select('test_scores');
+    if(rows && rows.length > 0){
+      TEST_SCORES = rows;
+      LS.set('test_scores', TEST_SCORES);
+      renderScores();
+    }
+  }catch(e){ console.log('Test scores: using localStorage'); }
+}
+
+// Hook training and scores into showPage
+const _origShowPage = showPage;
+showPage = function(id, el){
+  _origShowPage(id, el);
+  if(id==='training') renderTraining();
+  if(id==='scores') renderScores();
+  if(id==='measurements') renderMeasurements();
+};
+
+initTestScores();
+</script>
+
+<!-- ═══════════ MEASUREMENTS PAGE ═══════════ -->
+<div class="page" id="page-measurements">
+  <div style="margin-bottom:20px">
+    <div class="page-title" style="color:#001F5B;font-size:20px;font-weight:bold">Body Measurements</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Tracking recomp progress. Logs saved to Supabase. Charts update as entries are added.</div>
+  </div>
+
+  <!-- Entry form -->
+  <div style="background:#0d1b2e;border-radius:8px;padding:22px;margin-bottom:20px">
+    <div style="color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px">Log Measurements</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">
+      <div class="form-field"><label>Date</label><input type="date" id="m-date"></div>
+      <div class="form-field"><label>Weight (lbs)</label><input type="number" id="m-weight" step="0.1" placeholder="191.4"></div>
+      <div class="form-field"><label>Neck (in)</label><input type="number" id="m-neck" step="0.25" placeholder="16"></div>
+      <div class="form-field"><label>Shoulders (in)</label><input type="number" id="m-shoulders" step="0.25" placeholder="49.5"></div>
+      <div class="form-field"><label>Chest (in)</label><input type="number" id="m-chest" step="0.25" placeholder="41.5"></div>
+      <div class="form-field"><label>Waist / Navel (in)</label><input type="number" id="m-waist" step="0.25" placeholder="36.5"></div>
+      <div class="form-field"><label>Hips (in)</label><input type="number" id="m-hips" step="0.25" placeholder="40.5"></div>
+      <div class="form-field"><label>R Bicep Flexed (in)</label><input type="number" id="m-bicep-r-flex" step="0.25" placeholder="15"></div>
+      <div class="form-field"><label>R Bicep Relaxed (in)</label><input type="number" id="m-bicep-r-relax" step="0.25" placeholder="13"></div>
+      <div class="form-field"><label>L Bicep Flexed (in)</label><input type="number" id="m-bicep-l-flex" step="0.25" placeholder="14.75"></div>
+      <div class="form-field"><label>L Bicep Relaxed (in)</label><input type="number" id="m-bicep-l-relax" step="0.25" placeholder="12.5"></div>
+      <div class="form-field"><label>R Forearm (in)</label><input type="number" id="m-forearm-r" step="0.25" placeholder="11.75"></div>
+      <div class="form-field"><label>L Forearm (in)</label><input type="number" id="m-forearm-l" step="0.25" placeholder="11.5"></div>
+      <div class="form-field"><label>R Thigh Flexed (in)</label><input type="number" id="m-thigh-r-flex" step="0.25" placeholder="23"></div>
+      <div class="form-field"><label>R Thigh Relaxed (in)</label><input type="number" id="m-thigh-r-relax" step="0.25" placeholder="22.5"></div>
+      <div class="form-field"><label>L Thigh Flexed (in)</label><input type="number" id="m-thigh-l-flex" step="0.25" placeholder="22.5"></div>
+      <div class="form-field"><label>L Thigh Relaxed (in)</label><input type="number" id="m-thigh-l-relax" step="0.25" placeholder="22"></div>
+      <div class="form-field"><label>R Calf (in)</label><input type="number" id="m-calf-r" step="0.25" placeholder="15"></div>
+      <div class="form-field"><label>L Calf (in)</label><input type="number" id="m-calf-l" step="0.25" placeholder="15"></div>
+    </div>
+    <button class="btn-save" id="m-save-btn" onclick="saveMeasurement()">Save Measurements</button>
+  </div>
+
+  <!-- Key ratios summary -->
+  <div id="m-ratios" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
+
+  <!-- Charts grid -->
+  <div id="m-charts-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:20px"></div>
+
+  <!-- History table -->
+  <div class="session-history">
+    <div class="sh-header"><h3>Measurement History</h3></div>
+    <div style="overflow-x:auto">
+      <table class="log-table" id="m-table">
+        <thead><tr>
+          <th>Date</th><th>Weight</th><th>Shoulders</th><th>Chest</th><th>Waist</th>
+          <th>Hips</th><th>R Bicep</th><th>R Thigh</th><th>S/W Ratio</th><th></th>
+        </tr></thead>
+        <tbody id="m-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.m-ratio-card{background:#0d1b2e;border-radius:8px;padding:14px 18px}
+.m-ratio-label{font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.m-ratio-val{font-size:24px;font-weight:bold;line-height:1}
+.m-ratio-target{font-size:11px;color:rgba(255,255,255,0.35);margin-top:4px}
+.m-ratio-delta{font-size:11px;font-weight:bold;margin-top:2px}
+.m-chart-card{background:#fff;border-radius:8px;border:1px solid #e2e8f0;overflow:hidden}
+.m-chart-header{background:#0d1b2e;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.m-chart-title{color:#C5A028;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase}
+.m-chart-target{color:rgba(255,255,255,0.5);font-size:11px}
+.m-chart-wrap{padding:12px;position:relative;height:180px}
+@media(max-width:640px){
+  #m-charts-grid{grid-template-columns:1fr}
+  .m-chart-wrap{height:160px}
+}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════
+// MEASUREMENTS
+// ═══════════════════════════════════════════════
+let MEASUREMENTS = [];
+const mCharts = {};
+
+const MEAS_SEED = [{
+  date:'2026-04-01',
+  weight:191.4, neck:16, shoulders:49.5, chest:41.5,
+  waist:36.5, hips:40.5,
+  bicep_r_flex:15, bicep_r_relax:13,
+  bicep_l_flex:14.75, bicep_l_relax:12.5,
+  forearm_r:11.75, forearm_l:11.5,
+  thigh_r_flex:23, thigh_r_relax:22.5,
+  thigh_l_flex:22.5, thigh_l_relax:22,
+  calf_r:15, calf_l:15,
+  notes:'Baseline — 8 weeks into recomp'
+}];
+
+// Targets
+const MEAS_TARGETS = {
+  weight:   {lo:183, hi:187, label:'183–187 lbs', lower:true},
+  waist:    {lo:33.5, hi:35, label:'33.5–35 in', lower:true},
+  shoulders:{lo:48, hi:50, label:'48–50 in', lower:false},
+  chest:    {lo:41, hi:43, label:'41–43 in', lower:false},
+  hips:     {lo:38, hi:39.5, label:'38–39.5 in', lower:true},
+  sw_ratio: {lo:1.42, hi:1.48, label:'1.42–1.48', lower:false},
+};
+
+// Chart definitions — groups of measurements to show on one chart
+const M_CHARTS = [
+  {
+    id:'weight', title:'Weight', targetLabel:'Target: 183–187 lbs',
+    series:[{key:'weight', label:'Weight', color:'#2b5daf'}],
+    targetLo:183, targetHi:187, unit:'lbs', lower:true
+  },
+  {
+    id:'torso', title:'Shoulders / Chest / Waist / Hips', targetLabel:'Waist target: 33.5–35 in',
+    series:[
+      {key:'shoulders', label:'Shoulders', color:'#5a4fcf'},
+      {key:'chest',     label:'Chest',     color:'#2b5daf'},
+      {key:'waist',     label:'Waist',     color:'#8b2121'},
+      {key:'hips',      label:'Hips',      color:'#8b2157'},
+    ],
+    targetKey:'waist', targetLo:33.5, targetHi:35, unit:'in', lower:false
+  },
+  {
+    id:'arms', title:'Biceps (flexed) + Forearms', targetLabel:'Target: maintain 14.5–15.5 in',
+    series:[
+      {key:'bicep_r_flex',  label:'R Bicep (flex)', color:'#1a7a4a'},
+      {key:'bicep_l_flex',  label:'L Bicep (flex)', color:'#8B6914'},
+      {key:'forearm_r',     label:'R Forearm',      color:'#5a4fcf'},
+      {key:'forearm_l',     label:'L Forearm',      color:'#2b5daf'},
+    ],
+    targetLo:14.5, targetHi:15.5, unit:'in', lower:false
+  },
+  {
+    id:'legs', title:'Thighs + Calves', targetLabel:'Target: maintain',
+    series:[
+      {key:'thigh_r_flex', label:'R Thigh (flex)', color:'#1a7a4a'},
+      {key:'thigh_l_flex', label:'L Thigh (flex)', color:'#8B6914'},
+      {key:'calf_r',       label:'R Calf',         color:'#2b5daf'},
+      {key:'calf_l',       label:'L Calf',         color:'#8b2157'},
+    ],
+    unit:'in', lower:false
+  },
+];
+
+function mGet(id){ return parseFloat(document.getElementById(id).value)||null; }
+
+async function saveMeasurement(){
+  const date = document.getElementById('m-date').value;
+  if(!date){alert('Please enter a date.');return;}
+  const row = {
+    date,
+    weight:mGet('m-weight'), neck:mGet('m-neck'),
+    shoulders:mGet('m-shoulders'), chest:mGet('m-chest'),
+    waist:mGet('m-waist'), hips:mGet('m-hips'),
+    bicep_r_flex:mGet('m-bicep-r-flex'), bicep_r_relax:mGet('m-bicep-r-relax'),
+    bicep_l_flex:mGet('m-bicep-l-flex'), bicep_l_relax:mGet('m-bicep-l-relax'),
+    forearm_r:mGet('m-forearm-r'), forearm_l:mGet('m-forearm-l'),
+    thigh_r_flex:mGet('m-thigh-r-flex'), thigh_r_relax:mGet('m-thigh-r-relax'),
+    thigh_l_flex:mGet('m-thigh-l-flex'), thigh_l_relax:mGet('m-thigh-l-relax'),
+    calf_r:mGet('m-calf-r'), calf_l:mGet('m-calf-l'),
+  };
+  const btn = document.getElementById('m-save-btn');
+  btn.textContent='Saving…'; btn.disabled=true;
+
+  const saved = {...row, id: Date.now()};
+  MEASUREMENTS.push(saved);
+  MEASUREMENTS.sort((a,b)=>a.date.localeCompare(b.date));
+  LS.set('measurements', MEASUREMENTS);
+  document.querySelectorAll('#page-measurements input[type=number]').forEach(el=>el.value='');
+  renderMeasurements();
+  btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
+  setTimeout(()=>{btn.textContent='Save Measurements';btn.style.background='';btn.disabled=false;},1500);
+  try{ await SB.insert('body_measurements', row); }catch(e){}
+}
+
+async function deleteMeasurement(id){
+  if(!confirm('Delete this entry?')) return;
+  MEASUREMENTS=MEASUREMENTS.filter(m=>m.id!==id);
+  LS.set('measurements', MEASUREMENTS);
+  renderMeasurements();
+  try{ await SB.delete('body_measurements', id); }catch(e){}
+}
+
+function renderMeasurements(){
+  if(!document.getElementById('m-ratios')) return;
+  const latest = MEASUREMENTS.length ? MEASUREMENTS[MEASUREMENTS.length-1] : null;
+  const baseline = MEASUREMENTS.length ? MEASUREMENTS[0] : null;
+
+  // ── Key ratio cards ──────────────────────────────────────────
+  const ratioEl = document.getElementById('m-ratios');
+  if(latest){
+    const swRatio = latest.shoulders && latest.waist
+      ? (latest.shoulders/latest.waist).toFixed(2) : null;
+    const swTarget = MEAS_TARGETS.sw_ratio;
+    const swOk = swRatio && parseFloat(swRatio)>=swTarget.lo;
+
+    const cards = [
+      {label:'Weight', val:latest.weight?latest.weight+' lbs':'—',
+       target:'Target: 183–187 lbs',
+       delta: baseline&&latest.weight&&baseline.weight
+         ? ((latest.weight-baseline.weight)>0?'+':'')+((latest.weight-baseline.weight).toFixed(1))+' lbs from baseline'
+         : null,
+       good: latest.weight && latest.weight<=187},
+      {label:'Waist', val:latest.waist?latest.waist+' in':'—',
+       target:'Target: 33.5–35 in',
+       delta: baseline&&latest.waist&&baseline.waist
+         ? ((latest.waist-baseline.waist)>0?'+':'')+((latest.waist-baseline.waist).toFixed(2))+' in from baseline'
+         : null,
+       good: latest.waist && latest.waist<=35},
+      {label:'Shoulder / Waist Ratio', val:swRatio||'—',
+       target:'Target: 1.42–1.48',
+       delta: swRatio ? (parseFloat(swRatio)>=1.42?'✓ In target range':'Below target') : null,
+       good: swOk},
+      {label:'Chest', val:latest.chest?latest.chest+' in':'—',
+       target:'Target: 41–43 in (maintain)',
+       delta: baseline&&latest.chest&&baseline.chest
+         ? ((latest.chest-baseline.chest)>0?'+':'')+((latest.chest-baseline.chest).toFixed(2))+' in from baseline'
+         : null,
+       good: latest.chest && latest.chest>=41 && latest.chest<=43},
+      {label:'Hips', val:latest.hips?latest.hips+' in':'—',
+       target:'Target: 38–39.5 in',
+       delta: baseline&&latest.hips&&baseline.hips
+         ? ((latest.hips-baseline.hips)>0?'+':'')+((latest.hips-baseline.hips).toFixed(2))+' in from baseline'
+         : null,
+       good: latest.hips && latest.hips<=39.5},
+    ];
+
+    ratioEl.innerHTML = cards.map(c=>`
+      <div class="m-ratio-card">
+        <div class="m-ratio-label">${c.label}</div>
+        <div class="m-ratio-val" style="color:${c.good?'#9ae6b4':'#C5A028'}">${c.val}</div>
+        <div class="m-ratio-target">${c.target}</div>
+        ${c.delta?`<div class="m-ratio-delta" style="color:${c.good?'#9ae6b4':'rgba(255,255,255,0.4)'}">${c.delta}</div>`:''}
+      </div>`).join('');
+  } else {
+    ratioEl.innerHTML = '';
+  }
+
+  // ── Charts ───────────────────────────────────────────────────
+  const grid = document.getElementById('m-charts-grid');
+  Object.values(mCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+
+  grid.innerHTML = M_CHARTS.map(ch=>`
+    <div class="m-chart-card">
+      <div class="m-chart-header">
+        <span class="m-chart-title">${ch.title}</span>
+        <span class="m-chart-target">${ch.targetLabel||''}</span>
+      </div>
+      <div class="bd-legend" style="padding:8px 14px">
+        ${ch.series.map(s=>`<div class="bd-leg-item"><div class="leg-dashed" style="border-color:${s.color};width:18px;height:0;border-top:2px dashed"></div> ${s.label}</div>`).join('')}
+        ${ch.targetLo?`<div class="bd-leg-item"><div class="leg-dashed" style="border-color:#888;width:18px;height:0;border-top:2px dashed"></div> Target range</div>`:''}
+      </div>
+      <div class="m-chart-wrap"><canvas id="mc-${ch.id}"></canvas></div>
+    </div>`).join('');
+
+  const labels = MEASUREMENTS.map(m=>{
+    const d=new Date(m.date+'T12:00:00');
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  });
+
+  M_CHARTS.forEach(ch=>{
+    const ctx = document.getElementById('mc-'+ch.id);
+    if(!ctx) return;
+
+    const datasets = ch.series.map(s=>({
+      label: s.label,
+      data: MEASUREMENTS.map(m=>m[s.key]??null),
+      borderColor: s.color,
+      backgroundColor:'transparent',
+      borderWidth:2,
+      borderDash:[6,4],
+      pointRadius:4,
+      pointBackgroundColor:s.color,
+      tension:0,
+      spanGaps:false,
+    }));
+
+    // Target range band as two dashed lines
+    if(ch.targetLo){
+      const n = Math.max(labels.length, 1);
+      datasets.push({
+        label:`Target lo`,
+        data: Array(n).fill(ch.targetLo),
+        borderColor:'#888', backgroundColor:'transparent',
+        borderWidth:1, borderDash:[4,3], pointRadius:0, tension:0,
+      });
+      datasets.push({
+        label:`Target hi`,
+        data: Array(n).fill(ch.targetHi),
+        borderColor:'#888', backgroundColor:'transparent',
+        borderWidth:1, borderDash:[4,3], pointRadius:0, tension:0,
+      });
+    }
+
+    mCharts[ch.id] = new Chart(ctx,{
+      type:'line',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{callbacks:{label:(c)=>{
+            const v=c.raw; if(v===null) return null;
+            return `${c.dataset.label}: ${v} ${ch.unit}`;
+          }}}
+        },
+        scales:{
+          x:{ grid:{color:'rgba(0,0,0,0.04)'}, ticks:{color:'#888',font:{size:11},maxRotation:45} },
+          y:{ reverse: ch.lower||false, grid:{color:'rgba(0,0,0,0.04)'},
+              ticks:{color:'#888',font:{size:11}} }
+        }
+      }
+    });
+  });
+
+  // ── History table ────────────────────────────────────────────
+  const tbody = document.getElementById('m-tbody');
+  tbody.innerHTML='';
+  [...MEASUREMENTS].reverse().forEach(m=>{
+    const sw = m.shoulders&&m.waist ? (m.shoulders/m.waist).toFixed(2) : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML=`
+      <td>${m.date}</td>
+      <td>${m.weight??'—'}</td>
+      <td>${m.shoulders??'—'}</td>
+      <td>${m.chest??'—'}</td>
+      <td style="font-weight:bold;color:${m.waist&&m.waist<=35?'#1a7a4a':'#c0392b'}">${m.waist??'—'}</td>
+      <td>${m.hips??'—'}</td>
+      <td>${m.bicep_r_flex??'—'}</td>
+      <td>${m.thigh_r_flex??'—'}</td>
+      <td style="font-weight:bold">${sw}</td>
+      <td><button class="btn-del" onclick="deleteMeasurement(${m.id})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function initMeasurements(){
+  const saved = LS.get('measurements');
+  if(saved && saved.length > 0){
+    MEASUREMENTS = saved;
+  } else {
+    MEASUREMENTS = MEAS_SEED.map((r,i)=>({...r,id:i+1}));
+    LS.set('measurements', MEASUREMENTS);
+  }
+  // Try Supabase in background
+  try{
+    const rows = await SB.select('body_measurements');
+    if(rows && rows.length > 0){
+      MEASUREMENTS = rows;
+      LS.set('measurements', MEASUREMENTS);
+    }
+  }catch(e){ console.log('Measurements: using localStorage'); }
+}
+
+initMeasurements();
+</script>
+
+</body>
+</html>
