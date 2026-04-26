@@ -376,8 +376,8 @@ body{font-family:'Arial',sans-serif;background:#f0f2f5;color:#1a1a2e;font-size:1
 // ═══════════════════════════════════════════════
 // SUPABASE CONFIG — fill in your values after setup
 // ═══════════════════════════════════════════════
-const SUPABASE_URL  = 'https://nhhsxtwhetduzazfyaxn.supabase.co';
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oaHN4dHdoZXRkdXphemZ5YXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjMxODIsImV4cCI6MjA4OTkzOTE4Mn0.-9ieMpX47krZMQ9nhjGsfsHL-WljwjhQP4tPSjUvJk4';
+const SUPABASE_URL  = 'https://ysyaqakgyukupexjhbyg.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzeWFxYWtneXVrdXBleGpoYnlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMDUzMjIsImV4cCI6MjA4OTc4MTMyMn0.n3zZ1mgUFSEHDmOtzxh-GAOQYGQ4K6qws1Wn2KFWAjw';
 const TABLE         = 'cfa_log';
 
 // ═══════════════════════════════════════════════
@@ -418,9 +418,6 @@ const SB = {
     if(!r.ok) throw new Error(await r.text());
   }
 };
-
-// Keep TABLE const for any legacy references
-const TABLE = 'cfa_log';
 
 // ═══════════════════════════════════════════════
 // CONFIG
@@ -838,10 +835,15 @@ function refreshAll(){
 // INIT — load from Supabase, seed on first run
 // ═══════════════════════════════════════════════
 const SEED_DATA = [
-  {date:'2026-02-21', wt:200,   bb:55,  pu:2,   sh:10.75, cr:27, ps:20, mi:530, notes:'Baseline'},
-  {date:'2026-03-08', wt:200,   bb:60,  pu:1,   sh:9.97,  cr:30, ps:35, mi:477, notes:'Pull-ups: fatigue'},
-  {date:'2026-03-15', wt:197,   bb:60,  pu:2,   sh:9.6,   cr:44, ps:38, mi:531, notes:''},
-  {date:'2026-03-22', wt:201.2, bb:60,  pu:2.5, sh:10.10, cr:51, ps:41, mi:487, notes:'Shuttle: dog interference'},
+  {id:1,  date:'2026-02-21', wt:200,   bb:55,  pu:2,    sh:10.75, cr:27, ps:20, mi:530, notes:'Baseline'},
+  {id:2,  date:'2026-03-08', wt:200,   bb:60,  pu:1,    sh:9.97,  cr:30, ps:35, mi:477, notes:'Pull-ups: fatigue'},
+  {id:3,  date:'2026-03-15', wt:197,   bb:60,  pu:2,    sh:9.6,   cr:44, ps:38, mi:531, notes:''},
+  {id:10, date:'2026-03-22', wt:201.2, bb:60,  pu:2.95, sh:null,  cr:51, ps:41, mi:487, notes:'Dog interference on Shuttle - excluded'},
+  {id:11, date:'2026-03-26', wt:195,   bb:null,pu:null, sh:null,  cr:null,ps:null,mi:467,notes:''},
+  {id:12, date:'2026-03-28', wt:196,   bb:null,pu:3.5,  sh:null,  cr:57, ps:46, mi:null,notes:'half cfa day, windy so no bball throw'},
+  {id:15, date:'2026-04-13', wt:193.4, bb:65,  pu:6,    sh:9.5,   cr:61, ps:45, mi:430, notes:''},
+  {id:17, date:'2026-04-17', wt:191.4, bb:null,pu:null, sh:null,  cr:null,ps:null,mi:null,notes:''},
+  {id:18, date:'2026-04-24', wt:null,  bb:null,pu:null, sh:null,  cr:null,ps:null,mi:405, notes:''},
 ];
 
 function showBanner(msg, type='info'){
@@ -862,26 +864,25 @@ function showBanner(msg, type='info'){
 async function initApp(){
   showBanner('⏳  Loading data…');
 
-  // Step 1: Load from localStorage immediately
+  // Force reseed if localStorage is empty or has less data than seed
   const saved = LS.get('log');
-  if(saved && saved.length > 0){
+  if(saved && saved.length >= SEED_DATA.length){
     LOG = saved;
   } else {
-    LOG = SEED_DATA.map((r,i)=>({...r, id:i+1}));
+    // Clear and reseed
+    LOG = SEED_DATA;
     LS.set('log', LOG);
   }
   DB_READY = true;
-  CEV.forEach(ev=>{ delete cVals[ev.key]; });
   showBanner('✓  Data loaded', 'success');
   refreshAll();
 
-  // Step 2: Try Supabase silently in background
+  // Try Supabase silently in background
   try {
     const rows = await SB.select('cfa_log');
     if(rows && rows.length > 0){
       LOG = rows;
       LS.set('log', LOG);
-      CEV.forEach(ev=>{ delete cVals[ev.key]; });
       refreshAll();
     }
   } catch(e) {
@@ -889,8 +890,7 @@ async function initApp(){
   }
 }
 
-initApp();
-// Sources: USNA published max performance + threshold pts from calculator screenshot
+// initApp called after all definitions below
 // ═══════════════════════════════════════════════
 const SC={
   bb_male:   [[0,0],[30,18],[45,50],[50,62],[56,79],[65,90],[80,97],[102,100]],
@@ -1840,10 +1840,10 @@ let TEST_SCORES = [];
 
 // Seed with Aedan's known scores
 const SEED_SCORES = [
-  {date:'2025-03-01', type:'ACT', math:29, verbal:28, science:29, reading:33, notes:'ACT March 2025 — composite 30'},
-  {date:'2025-08-01', type:'SAT', math:630, verbal:670, science:null, reading:null, notes:'SAT August 2025 — 1300'},
-  {date:'2025-12-01', type:'SAT', math:660, verbal:630, science:null, reading:null, notes:'SAT December 2025 — 1290'},
-  {date:'2026-03-14', type:'SAT', math:640, verbal:650, science:null, reading:null, notes:'SAT March 2026 — 1290'},
+  {id:2, date:'2025-08-01', type:'SAT', math:630, verbal:670, science:null, reading:null, notes:'SAT August 2025 — 1300'},
+  {id:3, date:'2025-12-01', type:'SAT', math:660, verbal:630, science:null, reading:null, notes:'SAT December 2025 — 1290'},
+  {id:4, date:'2026-03-14', type:'SAT', math:640, verbal:650, science:null, reading:null, notes:'SAT March 2026 — 1290'},
+  {id:5, date:'2026-03-31', type:'ACT', math:29,  verbal:28,  science:29,   reading:33,   notes:'ACT March 2026 — composite 30'},
 ];
 
 // Toggle ACT-specific fields
@@ -2007,14 +2007,13 @@ function renderScores(){
 
 async function initTestScores(){
   const saved = LS.get('test_scores');
-  if(saved && saved.length > 0){
+  if(saved && saved.length >= SEED_SCORES.length){
     TEST_SCORES = saved;
   } else {
-    TEST_SCORES = SEED_SCORES.map((s,i)=>({...s,id:i+1}));
+    TEST_SCORES = SEED_SCORES;
     LS.set('test_scores', TEST_SCORES);
   }
   renderScores();
-  // Try Supabase in background
   try{
     const rows = await SB.select('test_scores');
     if(rows && rows.length > 0){
@@ -2117,7 +2116,7 @@ let MEASUREMENTS = [];
 const mCharts = {};
 
 const MEAS_SEED = [{
-  date:'2026-04-01',
+  id:1, date:'2026-04-01',
   weight:191.4, neck:16, shoulders:49.5, chest:41.5,
   waist:36.5, hips:40.5,
   bicep_r_flex:15, bicep_r_relax:13,
@@ -2372,13 +2371,12 @@ function renderMeasurements(){
 
 async function initMeasurements(){
   const saved = LS.get('measurements');
-  if(saved && saved.length > 0){
+  if(saved && saved.length >= MEAS_SEED.length){
     MEASUREMENTS = saved;
   } else {
-    MEASUREMENTS = MEAS_SEED.map((r,i)=>({...r,id:i+1}));
+    MEASUREMENTS = MEAS_SEED;
     LS.set('measurements', MEASUREMENTS);
   }
-  // Try Supabase in background
   try{
     const rows = await SB.select('body_measurements');
     if(rows && rows.length > 0){
@@ -2389,6 +2387,7 @@ async function initMeasurements(){
 }
 
 initMeasurements();
+initApp();
 </script>
 
 </body>
