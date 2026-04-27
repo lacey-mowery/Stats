@@ -675,35 +675,39 @@ async function saveEntry(){
   const btn = document.querySelector('.btn-save');
   btn.textContent='Saving…'; btn.disabled=true;
 
-  // Save to localStorage immediately
-  const newId = Date.now();
-  const saved = {...entry, id: newId};
-  LOG.push(saved);
-  LOG.sort((a,b)=>a.date.localeCompare(b.date));
-  LS.set('log', LOG);
-
-  ['f-wt','f-bb','f-pu','f-sh','f-cr','f-ps','f-mi','f-notes'].forEach(id=>document.getElementById(id).value='');
-  refreshAll();
-  btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
-  setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';btn.disabled=false;},1500);
-
-  // Try Supabase in background
   try {
-    const [sbSaved] = await SB.insert('cfa_log', entry);
-    // Update local id to match Supabase id
-    const idx = LOG.findIndex(r=>r.id===newId);
-    if(idx>=0){ LOG[idx].id = sbSaved.id; LS.set('log', LOG); }
-  } catch(e) { console.log('Supabase sync failed, saved locally only'); }
+    // Save to Supabase first — use its returned id
+    const [saved] = await SB.insert('cfa_log', entry);
+    LOG.push(saved);
+    LOG.sort((a,b)=>a.date.localeCompare(b.date));
+    LS.set('log', LOG);
+    ['f-wt','f-bb','f-pu','f-sh','f-cr','f-ps','f-mi','f-notes'].forEach(id=>document.getElementById(id).value='');
+    refreshAll();
+    btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
+    setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';btn.disabled=false;},1500);
+  } catch(e) {
+    // Supabase unavailable — save to localStorage only
+    console.log('Saving to localStorage only:', e.message);
+    const saved = {...entry, id: Date.now()};
+    LOG.push(saved);
+    LOG.sort((a,b)=>a.date.localeCompare(b.date));
+    LS.set('log', LOG);
+    ['f-wt','f-bb','f-pu','f-sh','f-cr','f-ps','f-mi','f-notes'].forEach(id=>document.getElementById(id).value='');
+    refreshAll();
+    btn.textContent='Saved (offline)'; btn.style.background='#8B6914';
+    setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';btn.disabled=false;},2000);
+  }
 }
 
 async function deleteRow(i){
   if(!confirm('Delete this entry?')) return;
   const row = LOG[i];
+  try{
+    await SB.delete('cfa_log', row.id);
+  }catch(e){ console.log('Supabase delete failed, removing locally only'); }
   LOG.splice(i,1);
   LS.set('log', LOG);
   refreshAll();
-  // Try Supabase in background
-  try { await SB.delete('cfa_log', row.id); } catch(e) {}
 }
 
 // ═══════════════════════════════════════════════
@@ -864,30 +868,39 @@ function showBanner(msg, type='info'){
 async function initApp(){
   showBanner('⏳  Loading data…');
 
-  // Force reseed if localStorage is empty or has less data than seed
+  // Try Supabase first — it's the source of truth
+  try {
+    let rows = await SB.select('cfa_log');
+    if(rows.length === 0){
+      // First run — seed Supabase with our data
+      showBanner('⏳  First run — seeding database…');
+      for(const row of SEED_DATA){
+        const {id, ...rowData} = row; // strip local id, let Supabase assign
+        const [saved] = await SB.insert('cfa_log', rowData);
+        rows.push(saved);
+      }
+    }
+    LOG = rows;
+    LS.set('log', LOG);
+    DB_READY = true;
+    showBanner('✓  Data loaded', 'success');
+    refreshAll();
+    return;
+  } catch(e) {
+    console.log('Supabase unavailable, falling back to localStorage');
+  }
+
+  // Supabase unreachable — use localStorage
   const saved = LS.get('log');
   if(saved && saved.length >= SEED_DATA.length){
     LOG = saved;
   } else {
-    // Clear and reseed
     LOG = SEED_DATA;
     LS.set('log', LOG);
   }
   DB_READY = true;
-  showBanner('✓  Data loaded', 'success');
+  showBanner('✓  Data loaded (offline mode)', 'success');
   refreshAll();
-
-  // Try Supabase silently in background
-  try {
-    const rows = await SB.select('cfa_log');
-    if(rows && rows.length > 0){
-      LOG = rows;
-      LS.set('log', LOG);
-      refreshAll();
-    }
-  } catch(e) {
-    console.log('Supabase unavailable, using localStorage');
-  }
 }
 
 // initApp called after all definitions below
@@ -1875,24 +1888,28 @@ async function saveTestScore(){
   const btn = document.getElementById('ts-save-btn');
   btn.textContent='Saving…'; btn.disabled=true;
 
-  const saved = {...entry, id: Date.now()};
-  TEST_SCORES.push(saved);
-  TEST_SCORES.sort((a,b)=>a.date.localeCompare(b.date));
-  LS.set('test_scores', TEST_SCORES);
-  ['ts-date','ts-sat-math','ts-verbal','ts-act-science','ts-act-reading','ts-notes']
-    .forEach(id=>document.getElementById(id).value='');
-  renderScores();
-  btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
-  setTimeout(()=>{btn.textContent='Save Score';btn.style.background='';btn.disabled=false;},1500);
-  try{ await SB.insert('test_scores', entry); }catch(e){}
+  try{
+    const [saved] = await SB.insert('test_scores', entry);
+    TEST_SCORES.push(saved);
+    TEST_SCORES.sort((a,b)=>a.date.localeCompare(b.date));
+    LS.set('test_scores', TEST_SCORES);
+    ['ts-date','ts-sat-math','ts-verbal','ts-act-science','ts-act-reading','ts-notes']
+      .forEach(id=>document.getElementById(id).value='');
+    renderScores();
+    btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
+    setTimeout(()=>{btn.textContent='Save Score';btn.style.background='';btn.disabled=false;},1500);
+  }catch(e){
+    alert('Save failed — check connection: '+e.message);
+    btn.textContent='Save Score'; btn.disabled=false;
+  }
 }
 
 async function deleteScore(id){
   if(!confirm('Delete this score?')) return;
+  try{ await SB.delete('test_scores', id); }catch(e){}
   TEST_SCORES = TEST_SCORES.filter(s=>s.id!==id);
   LS.set('test_scores', TEST_SCORES);
   renderScores();
-  try{ await SB.delete('test_scores', id); }catch(e){}
 }
 
 function getSuperscore(){
@@ -2006,22 +2023,25 @@ function renderScores(){
 }
 
 async function initTestScores(){
-  const saved = LS.get('test_scores');
-  if(saved && saved.length >= SEED_SCORES.length){
-    TEST_SCORES = saved;
-  } else {
-    TEST_SCORES = SEED_SCORES;
-    LS.set('test_scores', TEST_SCORES);
-  }
-  renderScores();
   try{
-    const rows = await SB.select('test_scores');
-    if(rows && rows.length > 0){
-      TEST_SCORES = rows;
-      LS.set('test_scores', TEST_SCORES);
-      renderScores();
+    let rows = await SB.select('test_scores');
+    if(rows.length === 0){
+      for(const s of SEED_SCORES){
+        const {id, ...rowData} = s;
+        const [saved] = await SB.insert('test_scores', rowData);
+        rows.push(saved);
+      }
     }
+    TEST_SCORES = rows;
+    LS.set('test_scores', TEST_SCORES);
+    renderScores();
+    return;
   }catch(e){ console.log('Test scores: using localStorage'); }
+
+  const saved = LS.get('test_scores');
+  TEST_SCORES = (saved && saved.length >= SEED_SCORES.length) ? saved : SEED_SCORES;
+  LS.set('test_scores', TEST_SCORES);
+  renderScores();
 }
 
 // Hook training and scores into showPage
@@ -2196,24 +2216,27 @@ async function saveMeasurement(){
   };
   const btn = document.getElementById('m-save-btn');
   btn.textContent='Saving…'; btn.disabled=true;
-
-  const saved = {...row, id: Date.now()};
-  MEASUREMENTS.push(saved);
-  MEASUREMENTS.sort((a,b)=>a.date.localeCompare(b.date));
-  LS.set('measurements', MEASUREMENTS);
-  document.querySelectorAll('#page-measurements input[type=number]').forEach(el=>el.value='');
-  renderMeasurements();
-  btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
-  setTimeout(()=>{btn.textContent='Save Measurements';btn.style.background='';btn.disabled=false;},1500);
-  try{ await SB.insert('body_measurements', row); }catch(e){}
+  try{
+    const [saved] = await SB.insert('body_measurements', row);
+    MEASUREMENTS.push(saved);
+    MEASUREMENTS.sort((a,b)=>a.date.localeCompare(b.date));
+    LS.set('measurements', MEASUREMENTS);
+    document.querySelectorAll('#page-measurements input[type=number]').forEach(el=>el.value='');
+    renderMeasurements();
+    btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
+    setTimeout(()=>{btn.textContent='Save Measurements';btn.style.background='';btn.disabled=false;},1500);
+  }catch(e){
+    alert('Save failed — check connection: '+e.message);
+    btn.textContent='Save Measurements'; btn.disabled=false;
+  }
 }
 
 async function deleteMeasurement(id){
   if(!confirm('Delete this entry?')) return;
+  try{ await SB.delete('body_measurements', id); }catch(e){}
   MEASUREMENTS=MEASUREMENTS.filter(m=>m.id!==id);
   LS.set('measurements', MEASUREMENTS);
   renderMeasurements();
-  try{ await SB.delete('body_measurements', id); }catch(e){}
 }
 
 function renderMeasurements(){
@@ -2370,20 +2393,23 @@ function renderMeasurements(){
 }
 
 async function initMeasurements(){
-  const saved = LS.get('measurements');
-  if(saved && saved.length >= MEAS_SEED.length){
-    MEASUREMENTS = saved;
-  } else {
-    MEASUREMENTS = MEAS_SEED;
-    LS.set('measurements', MEASUREMENTS);
-  }
   try{
-    const rows = await SB.select('body_measurements');
-    if(rows && rows.length > 0){
-      MEASUREMENTS = rows;
-      LS.set('measurements', MEASUREMENTS);
+    let rows = await SB.select('body_measurements');
+    if(rows.length === 0){
+      for(const row of MEAS_SEED){
+        const {id, ...rowData} = row;
+        const [saved] = await SB.insert('body_measurements', rowData);
+        rows.push(saved);
+      }
     }
+    MEASUREMENTS = rows;
+    LS.set('measurements', MEASUREMENTS);
+    return;
   }catch(e){ console.log('Measurements: using localStorage'); }
+
+  const saved = LS.get('measurements');
+  MEASUREMENTS = (saved && saved.length >= MEAS_SEED.length) ? saved : MEAS_SEED;
+  LS.set('measurements', MEASUREMENTS);
 }
 
 initMeasurements();
