@@ -632,12 +632,15 @@ function renderOverview(){
 // ═══════════════════════════════════════════════
 // LOG
 // ═══════════════════════════════════════════════
+let editingId = null; // tracks which entry is being edited
+
 function renderLog(){
   const tbody=document.getElementById('log-tbody');
   tbody.innerHTML='';
   [...LOG].reverse().forEach((row,ri)=>{
     const i=LOG.length-1-ri;
     const tr=document.createElement('tr');
+    tr.style.background = (row.id === editingId) ? '#fff8e6' : '';
     tr.innerHTML=`
       <td>${row.date}</td>
       <td>${row.wt??'—'}</td>
@@ -648,13 +651,61 @@ function renderLog(){
       <td>${row.ps??'—'}</td>
       <td>${row.mi?fmtMile(row.mi):'—'}</td>
       <td style="color:#666;font-style:italic">${row.notes||''}</td>
-      <td><button class="btn-del" onclick="deleteRow(${i})">✕</button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn-del" style="background:none;border:1px solid #C5A028;color:#C5A028" onclick="editRow(${i})">✏</button>
+        <button class="btn-del" onclick="deleteRow(${i})">✕</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
-  // Set today's date as default
   const today=new Date().toISOString().split('T')[0];
-  if(!document.getElementById('f-date').value) document.getElementById('f-date').value=today;
+  if(!editingId && !document.getElementById('f-date').value)
+    document.getElementById('f-date').value=today;
+}
+
+function editRow(i){
+  const row = LOG[i];
+  editingId = row.id;
+  // Pre-fill form
+  document.getElementById('f-date').value = row.date||'';
+  document.getElementById('f-wt').value   = row.wt??'';
+  document.getElementById('f-bb').value   = row.bb??'';
+  document.getElementById('f-pu').value   = row.pu??'';
+  document.getElementById('f-sh').value   = row.sh??'';
+  document.getElementById('f-cr').value   = row.cr??'';
+  document.getElementById('f-ps').value   = row.ps??'';
+  document.getElementById('f-mi').value   = row.mi ? fmtMile(row.mi) : '';
+  document.getElementById('f-notes').value = row.notes||'';
+  // Update button and form header
+  const btn = document.querySelector('.btn-save');
+  btn.textContent = 'Update Entry';
+  btn.style.background = '#C5A028';
+  // Add cancel button if not already there
+  if(!document.getElementById('cancel-edit-btn')){
+    const cancel = document.createElement('button');
+    cancel.id = 'cancel-edit-btn';
+    cancel.className = 'btn-save';
+    cancel.style.cssText = 'background:#444;margin-left:8px';
+    cancel.textContent = 'Cancel';
+    cancel.onclick = cancelEdit;
+    btn.parentNode.appendChild(cancel);
+  }
+  // Scroll to form
+  document.querySelector('.log-form').scrollIntoView({behavior:'smooth'});
+  renderLog();
+}
+
+function cancelEdit(){
+  editingId = null;
+  ['f-wt','f-bb','f-pu','f-sh','f-cr','f-ps','f-mi','f-notes']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  const btn = document.querySelector('.btn-save');
+  btn.textContent = 'Save Entry';
+  btn.style.background = '';
+  const cancel = document.getElementById('cancel-edit-btn');
+  if(cancel) cancel.remove();
+  renderLog();
 }
 
 async function saveEntry(){
@@ -675,8 +726,38 @@ async function saveEntry(){
   const btn = document.querySelector('.btn-save');
   btn.textContent='Saving…'; btn.disabled=true;
 
+  // UPDATE existing entry
+  if(editingId !== null){
+    try{
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/cfa_log?id=eq.${editingId}`,{
+        method:'PATCH',
+        headers:{apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`,
+          'Content-Type':'application/json', Prefer:'return=representation'},
+        body:JSON.stringify(entry)
+      });
+      if(!r.ok) throw new Error(await r.text());
+      const [updated] = await r.json();
+      const idx = LOG.findIndex(r=>r.id===editingId);
+      if(idx>=0) LOG[idx] = updated;
+      LS.set('log', LOG);
+      editingId = null;
+      const cancel = document.getElementById('cancel-edit-btn');
+      if(cancel) cancel.remove();
+      ['f-wt','f-bb','f-pu','f-sh','f-cr','f-ps','f-mi','f-notes']
+        .forEach(id=>document.getElementById(id).value='');
+      document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+      refreshAll();
+      btn.textContent='Updated ✓'; btn.style.background='#1a7a4a';
+      setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';btn.disabled=false;},1500);
+    }catch(e){
+      alert('Update failed: '+e.message);
+      btn.textContent='Update Entry'; btn.style.background='#C5A028'; btn.disabled=false;
+    }
+    return;
+  }
+
+  // NEW entry
   try {
-    // Save to Supabase first — use its returned id
     const [saved] = await SB.insert('cfa_log', entry);
     LOG.push(saved);
     LOG.sort((a,b)=>a.date.localeCompare(b.date));
@@ -686,7 +767,6 @@ async function saveEntry(){
     btn.textContent='Saved ✓'; btn.style.background='#1a7a4a';
     setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';btn.disabled=false;},1500);
   } catch(e) {
-    // Supabase unavailable — save to localStorage only
     console.log('Saving to localStorage only:', e.message);
     const saved = {...entry, id: Date.now()};
     LOG.push(saved);
