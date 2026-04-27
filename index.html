@@ -432,7 +432,7 @@ const SB = {
 const TARGET_DATE = new Date('2026-06-13');
 
 const USNA = {
-  wt: {avg:190,  max:180, min:null},
+  wt: {avg:190, max:185, min:206, label_min:'Start', label_avg:'Goal', label_max:'Stretch'},
   bb: {avg:67,   max:102, min:56},
   pu: {avg:13,   max:18,  min:7},
   sh: {avg:8.90, max:7.8, min:9.5},
@@ -815,13 +815,25 @@ function renderBurndown(){
   EVENTS.forEach((ev,idx)=>{
     const rows=LOG.filter(r=>getVal(r,ev.key)!==null);
     if(rows.length===0) return;
-    const avgD=ev.key==='mi'?fmtMile(USNA[ev.key].avg)+' min':USNA[ev.key].avg+' '+ev.unit;
-    const lowerNote=!ev.higher?' · Lower is better':'';
+    const avgD  = ev.key==='mi' ? fmtMile(USNA[ev.key].avg)+' min'  : USNA[ev.key].avg+' '+ev.unit;
+    const maxD  = ev.key==='mi' ? fmtMile(USNA[ev.key].max)+' min'  : USNA[ev.key].max+' '+ev.unit;
+    const minD  = USNA[ev.key].min !== null
+      ? (ev.key==='mi' ? fmtMile(USNA[ev.key].min)+' min' : USNA[ev.key].min+' '+ev.unit)
+      : null;
+    const lowerNote = !ev.higher ? ' · Lower is better' : '';
+    // Weight uses personal labels instead of USNA labels
+    const isWt = ev.key === 'wt';
+    const minLbl  = isWt ? 'Start' : 'Min';
+    const avgLbl  = isWt ? 'Goal'  : 'Avg';
+    const maxLbl  = isWt ? 'Stretch' : 'Max';
+    const statsLine = minD
+      ? `${lowerNote} · ${minLbl}: ${minD} · ${avgLbl}: ${avgD} · ${maxLbl}: ${maxD}`
+      : `${lowerNote} · ${avgLbl}: ${avgD} · ${maxLbl}: ${maxD}`;
     const card=document.createElement('div'); card.className='bd-card';
     card.innerHTML=`
       <div class="bd-header" style="background:${ev.color}">
         <div class="bd-header-left"><div class="bd-num">${idx+1}</div><div class="bd-title">${ev.name}</div></div>
-        <div class="bd-avg">${lowerNote} · Avg: ${avgD}</div>
+        <div class="bd-avg">${statsLine}</div>
       </div>
       <div class="bd-legend">
         <div class="bd-leg-item"><div class="leg-solid" style="background:${ev.color}"></div> Aedan (actual)</div>
@@ -1561,7 +1573,7 @@ function renderWeightCallout(){
   if(wtVals.length < 1) return;
 
   const currentWt = wtVals[wtVals.length-1];
-  const targetWt  = USNA['wt'].avg; // 190
+  const targetWt  = USNA['wt'].avg; // 190 — easy goal
   const wtDiff    = currentWt - targetWt; // positive = currently heavier than target
 
   const el = document.getElementById('weight-callout');
