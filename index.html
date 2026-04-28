@@ -177,7 +177,9 @@ body{font-family:'Arial',sans-serif;background:#f0f2f5;color:#1a1a2e;font-size:1
   .goals-table th:nth-child(3),
   .goals-table td:nth-child(3),
   .goals-table th:nth-child(4),
-  .goals-table td:nth-child(4){display:none}
+  .goals-table td:nth-child(4),
+  .goals-table th:nth-child(5),
+  .goals-table td:nth-child(5){display:none}
   .goals-table{font-size:12px}
   .goals-table th,.goals-table td{padding:8px 8px}
 
@@ -288,24 +290,19 @@ body{font-family:'Arial',sans-serif;background:#f0f2f5;color:#1a1a2e;font-size:1
       <div class="stat-card-sub">keep pushing</div>
     </div>
     <div class="stat-card">
-      <div class="stat-card-lbl">On Target</div>
+      <div class="stat-card-lbl">On Track for Exceeds</div>
+      <div class="stat-card-val" style="color:#C5A028" id="ov-exceeds">0</div>
+      <div class="stat-card-sub">trending to beat avg</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-lbl">On Target for Average</div>
       <div class="stat-card-val val-green" id="ov-ontarget">0</div>
-      <div class="stat-card-sub">events</div>
+      <div class="stat-card-sub">trending to meet avg</div>
     </div>
     <div class="stat-card">
-      <div class="stat-card-lbl">Meeting Min</div>
+      <div class="stat-card-lbl">Meeting Minimum</div>
       <div class="stat-card-val" style="color:#5dade2" id="ov-meetingmin">0</div>
-      <div class="stat-card-sub">events</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-lbl">Improving</div>
-      <div class="stat-card-val val-amber" id="ov-improving">0</div>
-      <div class="stat-card-sub">events</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-lbl">Needs Work</div>
-      <div class="stat-card-val val-red" id="ov-needswork">0</div>
-      <div class="stat-card-sub">events</div>
+      <div class="stat-card-sub">trending to clear min</div>
     </div>
   </div>
   <div class="event-grid" id="event-grid"></div>
@@ -371,8 +368,8 @@ body{font-family:'Arial',sans-serif;background:#f0f2f5;color:#1a1a2e;font-size:1
     <div class="goals-table-header"><h3>Monthly Milestone Targets</h3></div>
     <table class="goals-table">
       <thead><tr>
-        <th>Event</th><th>Current</th><th>May Target</th><th>Jun Target</th>
-        <th>Jun 13 Goal</th><th>CFA Avg</th><th>CFA Max</th><th>Status</th>
+        <th>Event</th><th>Current</th><th>May 10 🎯</th><th>May 24 🎯</th>
+        <th>Jun Target</th><th>Jun 13 Goal</th><th>CFA Avg</th><th>CFA Max</th><th>Status</th>
       </tr></thead>
       <tbody id="goals-tbody"></tbody>
     </table>
@@ -432,7 +429,7 @@ const SB = {
 const TARGET_DATE = new Date('2026-06-13');
 
 const USNA = {
-  wt: {avg:190, max:185, min:206, label_min:'Start', label_avg:'Goal', label_max:'Stretch'},
+  wt: {avg:190, max:185, min:201, label_min:'Start', label_avg:'Goal', label_max:'Stretch'},
   bb: {avg:67,   max:102, min:56},
   pu: {avg:13,   max:18,  min:7},
   sh: {avg:8.90, max:7.8, min:9.5},
@@ -452,15 +449,15 @@ const EVENTS = [
 ];
 
 const MILESTONES = {
-  // [May target, Jun target, Jun 13 goal]
+  // [May 10 (CFA #1), May 24 (CFA #2), Jun target, Jun 13 goal]
   // Updated April 2026 — based on current scores
-  wt: ['191–193','188–191','185–190'],   // currently 193.4, trending down well
-  bb: ['67–70','70–74','72–76'],          // currently 65, at avg — push toward best
-  pu: ['7–8','9–10','10–12'],             // currently 6, already past old May target
-  sh: ['9.1–9.3','8.9–9.1','8.8–9.0'],   // currently 9.5, trend 8.5 by Jun 13
-  cr: ['68–72','74–78','78–85'],          // currently 61, trending strongly
-  ps: ['52–58','58–64','62–68'],          // currently 45, steady climb
-  mi: ['6:55–7:10','6:40–6:55','6:30–6:45'], // currently 7:10, trend 6:53
+  wt: ['190–193','188–191','186–189','185–188'],
+  bb: ['66–68','68–71','70–73','72–76'],
+  pu: ['7–8','8–10','9–11','10–12'],
+  sh: ['9.1–9.3','9.0–9.2','8.9–9.1','8.8–9.0'],
+  cr: ['65–70','70–74','74–78','78–85'],
+  ps: ['48–52','52–56','56–60','62–68'],
+  mi: ['6:50–7:05','6:40–6:55','6:35–6:50','6:30–6:45'],
 };
 
 // LOG is loaded from Supabase on init — seed data inserted once on first load
@@ -541,17 +538,22 @@ function trendAtTarget(key, higher){
 }
 
 // Status based on whether the trend line will reach USNA avg by Jun 13
-// on-target   = trend projects to meet or beat USNA average by Jun 13
-// meeting-min = trend projects to meet minimum but not average
-// improving   = moving right but won't reach minimum
-// needs-work  = flat or wrong direction
+// 3-tier status based on trend projection to Jun 13:
+// exceeds-avg  = trend projects to meet or beat USNA max
+// on-target    = trend projects to meet USNA average
+// meeting-min  = trend projects to meet minimum but not average
+// needs-work   = won't meet minimum (or no min defined and not improving)
 function statusOf(key, higher){
   const avg = USNA[key].avg;
+  const max = USNA[key].max;
   const min = USNA[key].min;
   const latest = getLatest(key);
   if(latest === null) return 'needs-work';
 
   const projected = trendAtTarget(key, higher);
+
+  const willReachMax = higher ? projected >= max : projected <= max;
+  if(willReachMax) return 'exceeds-avg';
 
   const willReachAvg = higher ? projected >= avg : projected <= avg;
   if(willReachAvg) return 'on-target';
@@ -560,11 +562,6 @@ function statusOf(key, higher){
     const willReachMin = higher ? projected >= min : projected <= min;
     if(willReachMin) return 'meeting-min';
   }
-
-  const base = getBase(key);
-  if(base === null) return 'needs-work';
-  const movingRight = higher ? projected > base : projected < base;
-  if(movingRight) return 'improving';
 
   return 'needs-work';
 }
@@ -590,18 +587,16 @@ function renderOverview(){
   document.getElementById('days-left').textContent=dl;
   document.getElementById('ov-days').textContent=dl;
 
-  let onTarget=0,meetingMin=0,improving=0,needsWork=0;
+  let exceeds=0,onTarget=0,meetingMin=0;
   EVENTS.forEach(ev=>{
     const s=statusOf(ev.key, ev.higher);
-    if(s==='on-target') onTarget++;
-    else if(s==='meeting-min') meetingMin++;
-    else if(s==='improving') improving++;
-    else needsWork++;
+    if(s==='exceeds-avg') exceeds++;
+    else if(s==='on-target') onTarget++;
+    else meetingMin++; // meeting-min and needs-work both count here
   });
+  document.getElementById('ov-exceeds').textContent=exceeds;
   document.getElementById('ov-ontarget').textContent=onTarget;
   document.getElementById('ov-meetingmin').textContent=meetingMin;
-  document.getElementById('ov-improving').textContent=improving;
-  document.getElementById('ov-needswork').textContent=needsWork;
 
   const grid=document.getElementById('event-grid');
   grid.innerHTML='';
@@ -611,9 +606,9 @@ function renderOverview(){
     const pAvg=pctClosed(latest,base,USNA[ev.key].avg,ev.higher);
     const pMax=pctClosed(latest,base,USNA[ev.key].max,ev.higher);
     const s=statusOf(ev.key, ev.higher);
-    const badgeText=s==='on-target'?'On Target':s==='meeting-min'?'Meeting Min':s==='improving'?'Improving':'Needs Work';
-    const badgeClass=s==='on-target'?'badge-good':s==='meeting-min'?'badge-blue':s==='improving'?'badge-ok':'badge-bad';
-    const fillClass=s==='on-target'?'good':s==='meeting-min'?'ok':s==='improving'?'ok':'';
+    const badgeText=s==='exceeds-avg'?'On Track: Exceeds':s==='on-target'?'On Target: Avg':s==='meeting-min'?'Meeting Min':'Meeting Min';
+    const badgeClass=s==='exceeds-avg'?'badge-ok':s==='on-target'?'badge-good':'badge-blue';
+    const fillClass=s==='exceeds-avg'||s==='on-target'?'good':'ok';
 
     const avgDisp=ev.key==='mi'?fmtMile(USNA[ev.key].avg)+' min':USNA[ev.key].avg+' '+ev.unit;
     const maxDisp=ev.key==='mi'?fmtMile(USNA[ev.key].max)+' min':USNA[ev.key].max+' '+ev.unit;
@@ -838,9 +833,9 @@ function renderBurndown(){
       <div class="bd-legend">
         <div class="bd-leg-item"><div class="leg-solid" style="background:${ev.color}"></div> Aedan (actual)</div>
         <div class="bd-leg-item"><div class="leg-dashed"></div> Trend</div>
-        <div class="bd-leg-item"><div class="leg-dot" style="background:#00B050"></div> USNA Avg</div>
-        <div class="bd-leg-item"><div class="leg-dot" style="background:#C5A028"></div> USNA Max</div>
-        <div class="bd-leg-item"><div class="leg-dot" style="background:#e74c3c"></div> USNA Min</div>
+        <div class="bd-leg-item"><div class="leg-dot" style="background:#00B050"></div> ${ev.key==='wt'?'Goal':'USNA Avg'}</div>
+        <div class="bd-leg-item"><div class="leg-dot" style="background:#C5A028"></div> ${ev.key==='wt'?'Stretch':'USNA Max'}</div>
+        <div class="bd-leg-item"><div class="leg-dot" style="background:#e74c3c"></div> ${ev.key==='wt'?'Start':'USNA Min'}</div>
       </div>
       <div class="bd-chart-wrap"><canvas id="bdc-${ev.key}"></canvas></div>`;
     container.appendChild(card);
@@ -871,9 +866,9 @@ function renderBurndown(){
       data:{datasets:[
         {label:'Aedan',data:aDates.map((x,i)=>({x,y:aVals[i]})),borderColor:ev.color,backgroundColor:'transparent',borderWidth:3,pointRadius:5,pointBackgroundColor:ev.color,tension:0,parsing:false},
         {label:'Trend',data:trendPts,borderColor:'#0080FF',backgroundColor:'transparent',borderWidth:2,borderDash:[7,4],pointRadius:(c)=>c.dataIndex===0?0:3,pointBackgroundColor:'#0080FF',tension:0,parsing:false},
-        {label:'USNA Avg',data:[{x:xMin,y:USNA[ev.key].avg},{x:xMax,y:USNA[ev.key].avg}],borderColor:'#00B050',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],parsing:false},
-        {label:'USNA Max',data:[{x:xMin,y:USNA[ev.key].max},{x:xMax,y:USNA[ev.key].max}],borderColor:'#C5A028',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],parsing:false},
-        ...(USNA[ev.key].min!==null?[{label:'USNA Min',data:[{x:xMin,y:USNA[ev.key].min},{x:xMax,y:USNA[ev.key].min}],borderColor:'#e74c3c',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[3,3],parsing:false}]:[]),
+        {label:ev.key==='wt'?'Goal':'USNA Avg',data:[{x:xMin,y:USNA[ev.key].avg},{x:xMax,y:USNA[ev.key].avg}],borderColor:'#00B050',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],parsing:false},
+        {label:ev.key==='wt'?'Stretch':'USNA Max',data:[{x:xMin,y:USNA[ev.key].max},{x:xMax,y:USNA[ev.key].max}],borderColor:'#C5A028',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],parsing:false},
+        ...(USNA[ev.key].min!==null?[{label:ev.key==='wt'?'Start':'USNA Min',data:[{x:xMin,y:USNA[ev.key].min},{x:xMax,y:USNA[ev.key].min}],borderColor:'#e74c3c',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[3,3],parsing:false}]:[]),
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>{const v=c.raw.y;return ev.key==='mi'?`${c.dataset.label}: ${fmtMile(v)}`:`${c.dataset.label}: ${v} ${ev.unit}`;}}}},
@@ -897,8 +892,8 @@ function renderGoals(){
     const base=getBase(ev.key);
     const pAvg=pctClosed(latest,base,USNA[ev.key].avg,ev.higher);
     const s=statusOf(ev.key, ev.higher);
-    const spClass=s==='on-target'?'sp-good':s==='meeting-min'?'sp-blue':s==='improving'?'sp-ok':'sp-bad';
-    const spLabel=s==='on-target'?'On Target':s==='meeting-min'?'Meeting Min':s==='improving'?'Improving':'Needs Work';
+    const spClass=s==='exceeds-avg'?'sp-ok':s==='on-target'?'sp-good':'sp-blue';
+    const spLabel=s==='exceeds-avg'?'On Track: Exceeds':s==='on-target'?'On Target: Avg':'Meeting Min';
 
     const ms=MILESTONES[ev.key];
     const latestDisp=latest===null?'—':(ev.key==='mi'?fmtMile(latest)+' min':(ev.key==='wt'?Number(latest).toFixed(1):latest)+' '+ev.unit);
@@ -923,7 +918,8 @@ function renderGoals(){
       <td>${latestDisp}</td>
       <td>${ms[0]}</td>
       <td>${ms[1]}</td>
-      <td class="goal-june">${ms[2]} <span style="color:#888;font-size:11px;font-weight:normal">(trend: ${junProj})</span></td>
+      <td>${ms[2]}</td>
+      <td class="goal-june">${ms[3]} <span style="color:#888;font-size:11px;font-weight:normal">(trend: ${junProj})</span></td>
       <td style="color:#007030;font-weight:bold">${avgDisp}</td>
       <td style="color:#8B6914;font-weight:bold">${maxDisp}</td>
       <td><span class="status-pill ${spClass}">${spLabel}</span></td>
